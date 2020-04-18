@@ -195,7 +195,7 @@ local function rednetMessageReceived(id, packet)
                 end
             end
         end
-		
+        
         -- Gleise
         for gName, gleis in pairs(gleise) do
             if tostring(gleis.pc) == pc and tostring(gleis.au) == side
@@ -219,7 +219,7 @@ local function rednetMessageReceived(id, packet)
                     print("Fahrstrassenstatus "..fName.." "..state)
                 end
                 if state == "ON" then
-                    fahrstrasse.status = 1
+                    fahrstrasse.status = 4
                 else
                     fahrstrasse.status = 0
                 end
@@ -227,7 +227,8 @@ local function rednetMessageReceived(id, packet)
         end
     end
 end
-local function sendRestoneMessage(clientNumber, side, index, bit)
+local function sendRestoneMessage(clientNumber, side, colorIndex, bit)
+    local index = 2 ^ colorIndex
     clientNumber = tostring(clientNumber)
     if clientIds[clientNumber] == nil then
         print("Kein Client fuer " .. (clientNumber or "nil") .. "verbunden")
@@ -247,32 +248,32 @@ local function sendRestoneMessage(clientNumber, side, index, bit)
     print("SEND "..message)
     rednet.send(clientIds[clientNumber], message, protocol)
 end
-local function sendRedstoneImpulse(clientNumber, side, index)
-    sendRestoneMessage(clientNumber, side, index, true)
-    local resetRedstone = function(clientNumber, side, index)
-        sendRestoneMessage(clientNumber, side, index, false)
+local function sendRedstoneImpulse(clientNumber, side, colorIndex)
+    sendRestoneMessage(clientNumber, side, colorIndex, true)
+    local resetRedstone = function(clientNumber, side, colorIndex)
+        sendRestoneMessage(clientNumber, side, colorIndex, false)
     end
-    setzteTimer(0.2, resetRedstone, clientNumber, side, index)
+    setzteTimer(0.2, resetRedstone, clientNumber, side, colorIndex)
 end
 
 -- Stellbild
 local function zeichne(x, y, farbe, text)
-	if x == nil then
-		print("zeichne: x ist nil "..text)
-		return
-	end
-	if y == nil then
-		print("zeichne: y ist nil")
-		return
-	end
-	if farbe == nil then
-		print("zeichne: farbe ist nil")
-		return
-	end
-	if text == nil then
-		print("zeichne: text ist nil")
-		return
-	end
+    if x == nil then
+        print("zeichne: x ist nil "..text)
+        return
+    end
+    if y == nil then
+        print("zeichne: y ist nil")
+        return
+    end
+    if farbe == nil then
+        print("zeichne: farbe ist nil")
+        return
+    end
+    if text == nil then
+        print("zeichne: text ist nil")
+        return
+    end
     mon.setTextColor(farbe)
     mon.setCursorPos(x, y)
     mon.write(text)
@@ -309,9 +310,9 @@ local function zeichneGleis(gleis, farbe)
     end
 end
 local function zeichneFSTeile(fs, farbe)
-    if fs.status == 1 then
+    if fs.status > 0 then
         for i, item in ipairs(fs.fsTeile) do
-			print("Zeichne FS-Teil "..item.." farbe="..farbe)
+            print("Zeichne FS-Teil "..item.." farbe="..farbe)
             local fsTeil
             if fahrstrassenteile[item] then
                 fsTeil = fahrstrassenteile[item]
@@ -370,11 +371,11 @@ local function neuzeichnen()
     
     -- zeichne Signale
     for i, signal in pairs(signale) do
-		if signal.hp ~= nil then
-			zeichneSignal(signal, "<|", "|>")
-		else
-			zeichneSignal(signal, "<", ">")
-		end
+        if signal.hp ~= nil then
+            zeichneSignal(signal, "<|", "|>")
+        else
+            zeichneSignal(signal, "<", ">")
+        end
     end
     
     -- zeichne Gleise
@@ -384,9 +385,9 @@ local function neuzeichnen()
     
     -- zeichne Fahrstrassen
     for i, fs in pairs(fahrstrassen) do
-		local fsFarbe = colors.lime
-		if fs.rangieren then
-			fsFarbe = colors.blue
+        local fsFarbe = colors.lime
+        if fs.rangieren then
+            fsFarbe = colors.blue
         zeichneFSTeile(fs, fsFarbe)
     end
     
@@ -410,45 +411,90 @@ local function neuzeichnen()
 end
 
 -- Callback
-local function stelleFS(name)
+local function stelleFS(name, keineNachricht)
+    local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
-		print("stelleFS: FS "..name.." nicht projektiert")
-		return
-    end
-    if fs.steller ~= nil then
-        sendRedstoneImpulse(fs.steller.pc, fs.steller.au, (2 ^ fs.steller.fb))
-        nachricht = "Fahrstrasse " .. name .. " eingestellt"
-    else if fs.weichen ~= nil then
-		
-	else
-		nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
-	end
-end
-local function loeseFSauf(name)
-    local fs = fahrstrassen[name]
-    if fs == nil then
-		print("loeseFSauf: FS "..name.." nicht projektiert")
-		return
-    end
-    if fs.aufloeser == nil then
-        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (aufloeser)"
+        rueckmeldung = "stelleFS: FS "..name.." nicht projektiert"
+    else if fs.steller ~= nil then
+        sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
+        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
     else
-        sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, (2 ^ fs.aufloeser.fb), true)
-        nachricht = "Fahrstrasse " .. name .. " aufgeloest"
+        fahrstrassen[name].status = 1
+        
+        if fs.weichen ~= nil then
+            for i, weiche in pairs(fs.weichen) do
+                stelleWeiche(weiche, true)
+            end
+        end
+        
+        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
+    end
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
+    end
+    -- nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
+end
+local function stelleWeiche(name, abzweigend, keineNachricht)
+    local rueckmeldung = ""
+    local weiche = weichen[name]
+    if weiche == nil then
+        rueckmeldung = "stelleWeiche: Weiche "..name.." nicht projektiert"
+    else
+        sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend)
+        
+        local lage = "gerade"
+        if abzweigend then
+            lage = "abzweigend"
+        end
+        rueckmeldung = "Weiche " .. name .. " umgestellt auf " .. lage
+    end
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
     end
 end
-local function signalHalt(name)
+local function loeseFSauf(name, keineNachricht)
+    local rueckmeldung = ""
+    local fs = fahrstrassen[name]
+    if fs == nil then
+        rueckmeldung = "FS "..name.." nicht projektiert"
+    else if fs.aufloeser == nil then
+        rueckmeldung = "Fahrstrasse " .. name .. " nicht richtig projektiert (aufloeser)"
+    else
+        sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb)
+        rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
+    end
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
+    end
+end
+local function signalHalt(name, keineNachricht)
+    local rueckmeldung = ""
     local signal = signale[name]
     if signal == nil then
-		print("signalHalt: Signal "..name.." nicht projektiert")
-		return
+        rueckmeldung = "Signal "..name.." nicht projektiert"
     end
+    local rueckmeldung = ""
     if signal.halt == nil then
-        nachricht = "Signal " .. name .. " nicht richtig projektiert (halt)"
+        rueckmeldung = "Signal " .. name .. " nicht richtig projektiert (halt)"
     else
-        sendRedstoneImpulse(signal.halt.pc, signal.halt.au, (2 ^ signal.halt.fb), true)
-        nachricht = "Signal " .. name .. " auf Halt gestellt"
+        sendRedstoneImpulse(signal.halt.pc, signal.halt.au, signal.halt.fb)
+        rueckmeldung = "Signal " .. name .. " auf Halt gestellt"
+    end
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
     end
 end
 
@@ -509,7 +555,6 @@ local function behandleKlick(x, y)
         local x2 = x1 + string.len(fsTeil.text)
         if x >= x1 and x < x2 and y == fsTeil.y then
             eingabe = eingabe .. " " .. name
-            fahrstrassenteile[name].status = 1
             break
         end
     end
