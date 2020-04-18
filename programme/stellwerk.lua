@@ -12,24 +12,23 @@ function dump(o)
 end
 
 -- load configuration
-local debug = false
-local configFile = "config"
+local debug = true
+local configFile = "config.lua"
 if not fs.exists(configFile) then
     print("Config not found")
     return
 end
 
 os.loadAPI(configFile)
+local config = _G[configFile]
 
 local configContents = {
     gleisbildDatei = "string",
     signale = "table",
-    sperrsignale = "table",
     fsZiele = "table",
     bahnuebergaenge = "table",
     fahrstrassenteile = "table",
     fahrstrassen = "table",
-    rangierfahrstrassen = "table",
     bildschirm = "string",
     modem = "string",
     stellwerkName = "string",
@@ -48,14 +47,15 @@ if not fs.exists(config.gleisbildDatei) then
     return
 end
 
+-- Status: 0 = Halt, 1 = Fahrt, 2 = Rangierfahrt
 local signale = config.signale
-local sperrsignale = config.sperrsignale
 local fsZiele = config.fsZiele
 local bahnuebergaenge = config.bahnuebergaenge
+-- Status: 0 = Frei, 1 = Besetzt
 local gleise = config.gleise
 local fahrstrassenteile = config.fahrstrassenteile
+-- Status: 0 = Nichts, 1 = Wird eingestellt, 2 = Festgelegt, 3 = Signalfreigabe
 local fahrstrassen = config.fahrstrassen
-local rangierfahrstrassen = config.rangierfahrstrassen
 
 local eingabe = ""
 local eingabeModus = ""
@@ -195,21 +195,7 @@ local function rednetMessageReceived(id, packet)
                 end
             end
         end
-        
-        -- Sperrsignale
-        for sName, signal in pairs(sperrsignale) do
-            if signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
-                if debug then
-                    print("Signalstatus "..sName)
-                end
-                if state == "ON" then
-                    signal.status = 2
-                else
-                    signal.status = 0
-                end
-            end
-        end
-        
+		
         -- Gleise
         for gName, gleis in pairs(gleise) do
             if tostring(gleis.pc) == pc and tostring(gleis.au) == side
@@ -225,27 +211,12 @@ local function rednetMessageReceived(id, packet)
             end
         end
         
-        -- Zugfahrstrassen
+        -- Fahrstrassen
         for fName, fahrstrasse in pairs(fahrstrassen) do
             if tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
                     and tostring(2 ^ fahrstrasse.melder.fb) == color then
                 if debug then
-                    print("Fahrstrassenstatus "..fName)
-                end
-                if state == "ON" then
-                    fahrstrasse.status = 1
-                else
-                    fahrstrasse.status = 0
-                end
-            end
-        end
-        
-        -- Rangierfahrstrassen
-        for fName, fahrstrasse in pairs(rangierfahrstrassen) do
-            if tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
-                    and tostring(2 ^ fahrstrasse.melder.fb) == color then
-                if debug then
-                    print("RFahrstrassenstatus "..fName)
+                    print("Fahrstrassenstatus "..fName.." "..state)
                 end
                 if state == "ON" then
                     fahrstrasse.status = 1
@@ -286,6 +257,22 @@ end
 
 -- Stellbild
 local function zeichne(x, y, farbe, text)
+	if x == nil then
+		print("zeichne: x ist nil "..text)
+		return
+	end
+	if y == nil then
+		print("zeichne: y ist nil")
+		return
+	end
+	if farbe == nil then
+		print("zeichne: farbe ist nil")
+		return
+	end
+	if text == nil then
+		print("zeichne: text ist nil")
+		return
+	end
     mon.setTextColor(farbe)
     mon.setCursorPos(x, y)
     mon.write(text)
@@ -324,6 +311,7 @@ end
 local function zeichneFSTeile(fs, farbe)
     if fs.status == 1 then
         for i, item in ipairs(fs.fsTeile) do
+			print("Zeichne FS-Teil "..item.." farbe="..farbe)
             local fsTeil
             if fahrstrassenteile[item] then
                 fsTeil = fahrstrassenteile[item]
@@ -373,14 +361,20 @@ local function neuzeichnen()
         end
     end
     
-    -- zeichne Signale
-    for i, signal in pairs(signale) do
-        zeichneSignal(signal, "<|", "|>")
+    -- zeichen Fahrstrassenteile
+    if debug then
+        for i, fsTeil in pairs(fahrstrassenteile) do
+            zeichneItem(fsTeil, colors.orange, fsTeil.text)
+        end
     end
     
-    -- zeichne Sperrsignale
-    for i, signal in pairs(sperrsignale) do
-        zeichneSignal(signal, "<", ">")
+    -- zeichne Signale
+    for i, signal in pairs(signale) do
+		if signal.hp ~= nil then
+			zeichneSignal(signal, "<|", "|>")
+		else
+			zeichneSignal(signal, "<", ">")
+		end
     end
     
     -- zeichne Gleise
@@ -388,21 +382,12 @@ local function neuzeichnen()
         zeichneGleis(gleis, colors.yellow)
     end
     
-    -- zeichne Zugfahrstrassen
+    -- zeichne Fahrstrassen
     for i, fs in pairs(fahrstrassen) do
-        zeichneFSTeile(fs, colors.lime)
-    end
-    
-    -- zeichne Rangierfahrstrassen
-    for i, fs in pairs(rangierfahrstrassen) do
-        zeichneFSTeile(fs, colors.blue)
-    end
-    
-    -- zeichen Fahrstrassenteile
-    if debug then
-        for i, fsTeil in pairs(fahrstrassenteile) do
-            zeichneItem(fsTeil, colors.orange, fsTeil.text)
-        end
+		local fsFarbe = colors.lime
+		if fs.rangieren then
+			fsFarbe = colors.blue
+        zeichneFSTeile(fs, fsFarbe)
     end
     
     -- zeichne Bahnuebergaenge
@@ -428,30 +413,26 @@ end
 local function stelleFS(name)
     local fs = fahrstrassen[name]
     if fs == nil then
-        fs = rangierfahrstrassen[name]
-        if fs == nil then
-            print("stelleFS: FS "..name.." nicht projektiert")
-            return
-        end
+		print("stelleFS: FS "..name.." nicht projektiert")
+		return
     end
-    if fs.steller == nil then
-        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert"
-    else
+    if fs.steller ~= nil then
         sendRedstoneImpulse(fs.steller.pc, fs.steller.au, (2 ^ fs.steller.fb))
         nachricht = "Fahrstrasse " .. name .. " eingestellt"
-    end
+    else if fs.weichen ~= nil then
+		
+	else
+		nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
+	end
 end
 local function loeseFSauf(name)
     local fs = fahrstrassen[name]
     if fs == nil then
-        fs = rangierfahrstrassen[name]
-        if fs == nil then
-            print("loeseFSauf: FS "..name.." nicht projektiert")
-            return
-        end
+		print("loeseFSauf: FS "..name.." nicht projektiert")
+		return
     end
     if fs.aufloeser == nil then
-        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert"
+        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (aufloeser)"
     else
         sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, (2 ^ fs.aufloeser.fb), true)
         nachricht = "Fahrstrasse " .. name .. " aufgeloest"
@@ -460,14 +441,11 @@ end
 local function signalHalt(name)
     local signal = signale[name]
     if signal == nil then
-        signal = sperrsignale[name]
-        if signal == nil then
-            print("signalHalt: Signal "..name.." nicht projektiert")
-            return
-        end
+		print("signalHalt: Signal "..name.." nicht projektiert")
+		return
     end
     if signal.halt == nil then
-        nachricht = "Signal " .. name .. " nicht richtig projektiert"
+        nachricht = "Signal " .. name .. " nicht richtig projektiert (halt)"
     else
         sendRedstoneImpulse(signal.halt.pc, signal.halt.au, (2 ^ signal.halt.fb), true)
         nachricht = "Signal " .. name .. " auf Halt gestellt"
@@ -492,7 +470,7 @@ local function puefeElement(x, y, eName, element, groesse)
                 elseif eingabeModus == "AUFL" then
                     loeseFSauf(fsName)
                 end
-            elseif rangierfahrstrassen[eingabe .. "-" .. eName] then
+            elseif fahrstrassen[eingabe .. "-" .. eName] then
                 fsName = eingabe .. "-" .. eName
                 if eingabeModus == "" then
                     stelleFS(fsName)
@@ -517,11 +495,6 @@ local function behandleKlick(x, y)
     end
     
     for name, signal in pairs(signale) do
-        if puefeElement(x, y, name, signal, 1) then
-            break
-        end
-    end
-    for name, signal in pairs(sperrsignale) do
         if puefeElement(x, y, name, signal, 1) then
             break
         end

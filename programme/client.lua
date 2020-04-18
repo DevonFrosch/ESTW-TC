@@ -1,17 +1,18 @@
 -- load configuration
 local debug = false
-local configFile = "config"
+local configFile = "config.lua"
 if not fs.exists(configFile) then
     print("Config not found")
     return
 end
 
 os.loadAPI(configFile)
+local config = _G[configFile]
 
 -- test config
 local configTests = {
     modem = type(config.modem) == "string",
-    name = type(config.name) == "string",
+    stellwerkName = type(config.stellwerkName) == "string",
     role = type(config.role) == "string",
     sides = type(config.sides) == "table",
     ["sides.left"]   = config.sides and (config.sides.left   == nil or config.sides.left   == true),
@@ -36,7 +37,7 @@ local serverId = nil
 local redstoneStates = {}
 
 local protocolVersion = "STW v1"
-local protocol = protocolVersion .. " " .. config.name
+local protocol = protocolVersion .. " " .. config.stellwerkName
 local serverName = "Server"
 local clientName = "Client"..tostring(config.role)
 local redstoneHasChanged = function() print("stub") end -- defined below
