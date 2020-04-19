@@ -208,11 +208,11 @@ local function neuzeichnen()
 end
 
 -- Callback
-local function stelleWeiche(name, abzweigend, keineNachricht)
+local function stelleWeiche(name, abzweigend, mitNachricht)
     local rueckmeldung = ""
     local weiche = weichen[name]
     if weiche == nil then
-        rueckmeldung = "stelleWeiche: Weiche "..name.." nicht projektiert"
+        meldung = "stelleWeiche: Weiche "..name.." nicht projektiert"
     else
         kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
         
@@ -223,11 +223,10 @@ local function stelleWeiche(name, abzweigend, keineNachricht)
         rueckmeldung = "Weiche " .. name .. " umgestellt auf " .. lage
     end
     
-    if keineNachricht then
-        print(rueckmeldung)
-    else
+    if mitNachricht then
         nachricht = rueckmeldung
     end
+    print(rueckmeldung)
 end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
     local cnf = signal["stelle_"..signalbild]
@@ -235,7 +234,7 @@ local function aktiviereSignalbild(signal, signalbild, aktiv)
         kommunikation.sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
     end
 end
-local function stelleSignal(name, signalbild, keineNachricht)
+local function stelleSignal(name, signalbild, mitNachricht)
     local rueckmeldung = ""
     local signal = signale[name]
     if signal == nil then
@@ -258,11 +257,10 @@ local function stelleSignal(name, signalbild, keineNachricht)
     
     rueckmeldung = "Signal " .. name .. " auf " .. signalbild .. " gestellt"
     
-    if keineNachricht then
-        print(rueckmeldung)
-    else
+    if mitNachricht then
         nachricht = rueckmeldung
     end
+    print(rueckmeldung)
 end
 
 local function kollidierendeFahrstrasse(fs)
@@ -280,7 +278,7 @@ local function kollidierendeFahrstrasse(fs)
     end
     return nil
 end
-local function stelleFS(name, keineNachricht)
+local function stelleFS(name, mitNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
@@ -311,7 +309,7 @@ local function stelleFS(name, keineNachricht)
         fahrstrassen[name].status = 3
         
         for signal, signalbild in pairs(fs.signale) do
-            stelleSignal(signal, signalbild, false)
+            stelleSignal(signal, signalbild)
         end
         
         rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
@@ -319,13 +317,12 @@ local function stelleFS(name, keineNachricht)
         nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
     end
     
-    if keineNachricht then
-        print(rueckmeldung)
-    else
+    if mitNachricht then
         nachricht = rueckmeldung
     end
+    print(rueckmeldung)
 end
-local function loeseFSauf(name, keineNachricht)
+local function loeseFSauf(name, mitNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
@@ -335,7 +332,7 @@ local function loeseFSauf(name, keineNachricht)
         rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
     elseif fs.signale ~= nil then
         for signal, signalbild in pairs(fs.signale) do
-            stelleSignal(signal, SIGNAL_HALT, true)
+            stelleSignal(signal, SIGNAL_HALT)
         end
         
         fahrstrassen[name].status = 4
@@ -349,11 +346,10 @@ local function loeseFSauf(name, keineNachricht)
         nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
     end
     
-    if keineNachricht then
-        print(rueckmeldung)
-    else
+    if mitNachricht then
         nachricht = rueckmeldung
     end
+    print(rueckmeldung)
 end
 
 local function puefeElement(x, y, eName, element, groesse)
@@ -370,16 +366,16 @@ local function puefeElement(x, y, eName, element, groesse)
             if fahrstrassen[eingabe .. "." .. eName] then
                 fsName = eingabe .. "." .. eName
                 if eingabeModus == "" then
-                    stelleFS(fsName)
+                    stelleFS(fsName, true)
                 elseif eingabeModus == "AUFL" then
-                    loeseFSauf(fsName)
+                    loeseFSauf(fsName, true)
                 end
             elseif fahrstrassen[eingabe .. "-" .. eName] then
                 fsName = eingabe .. "-" .. eName
                 if eingabeModus == "" then
-                    stelleFS(fsName)
+                    stelleFS(fsName, true)
                 elseif eingabeModus == "AUFL" then
-                    loeseFSauf(fsName)
+                    loeseFSauf(fsName, true)
                 end
             else
                 nachricht = "Keine Fahrstrasse von " .. eingabe .. " nach " .. eName .. " gefunden"
@@ -443,6 +439,17 @@ local function behandleKlick(x, y)
     if debug then
         print("EIN: " .. eingabe)
         print("VQ: " .. nachricht)
+    end
+end
+
+-- setzt alle Ausgänge zurück
+local function reset()
+    for name, signal in pairs(signale) do
+        stelleSignal(name, SIGNAL_HALT)
+    end
+    
+    for name, weiche in pairs(weichen) do
+        stelleWeiche(name, false)
     end
 end
 
