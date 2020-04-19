@@ -1,9 +1,10 @@
 os.loadAPI("tools")
 
-local debug = true
+local debug = false
 local kommunikation = tools.loadAPI("kommunikation.lua")
 local bildschirm = tools.loadAPI("bildschirm.lua")
 local events = tools.loadAPI("events.lua")
+local stellwerkDatei = tools.loadAPI("stellwerk.datei.lua")
 
 -- load configuration
 local config = tools.loadAPI("config.lua")
@@ -106,9 +107,9 @@ local function zeichneGleis(gleis, farbe)
         end
     end
 end
-local function zeichneFSTeile(fs, farbe)
-    if fs.status and fs.status > 0 then
-        for i, item in ipairs(fs.fsTeile) do
+local function zeichneFSTeile(fahrstr, farbe)
+    if fahrstr.status and fahrstr.status > 0 then
+        for i, item in ipairs(fahrstr.fsTeile) do
             local fsTeil
             if fahrstrassenteile[item] then
                 fsTeil = fahrstrassenteile[item]
@@ -180,12 +181,12 @@ local function neuzeichnen()
     end
     
     -- zeichne Fahrstrassen
-    for i, fs in pairs(fahrstrassen) do
+    for i, fahrstr in pairs(fahrstrassen) do
         local fsFarbe = colors.lime
-        if fs.rangieren then
+        if fahrstr.rangieren then
             fsFarbe = colors.blue
         end
-        zeichneFSTeile(fs, fsFarbe)
+        zeichneFSTeile(fahrstr, fsFarbe)
     end
     
     -- zeichne Bahnuebergaenge
@@ -265,8 +266,8 @@ local function stelleSignal(name, signalbild, mitNachricht)
     erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
 end
 
-local function kollidierendeFahrstrasse(fs)
-    for i, fsTeil in ipairs(fs.fsTeile) do
+local function kollidierendeFahrstrasse(fahrstr)
+    for i, fsTeil in ipairs(fahrstr.fsTeile) do
         for fName, andereFs in pairs(fahrstrassen) do
             if andereFs.status ~= nil and andereFs.status > 0 then
                 for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
@@ -279,26 +280,26 @@ local function kollidierendeFahrstrasse(fs)
     end
     return nil
 end
-local function stelleFS(name, mitNachricht)
+local function stelleFahrstrasse(name, mitNachricht, istReset)
     local rueckmeldung = ""
-    local fs = fahrstrassen[name]
-    if fs == nil then
+    local fahrstr = fahrstrassen[name]
+    if fahrstr == nil then
         return fehler("Fahrstrasse "..name.." nicht projektiert")
     end
     
-    if fs.steller ~= nil then
-        kommunikation.sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb, debug)
-    elseif fs.signale ~= nil then
+    if fahrstr.steller ~= nil then
+        kommunikation.sendRedstoneImpulse(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb, debug)
+    elseif fahrstr.signale ~= nil then
         -- Kollisionserkennung
-        local kollision = kollidierendeFahrstrasse(fs)
+        local kollision = kollidierendeFahrstrasse(fahrstr)
         if kollision ~= nil then
             return fehler("FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision)
         end
         
         fahrstrassen[name].status = 1
         
-        if fs.weichen ~= nil then
-            for i, weiche in pairs(fs.weichen) do
+        if fahrstr.weichen ~= nil then
+            for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, true)
             end
         end
@@ -307,9 +308,13 @@ local function stelleFS(name, mitNachricht)
         
         -- Gleisbelegung prüfen
         
+        if not istReset then
+            stellwerkDatei.speichereFahrstrasse(name)
+        end
+        
         fahrstrassen[name].status = 3
         
-        for signal, signalbild in pairs(fs.signale) do
+        for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, signalbild)
         end
         
@@ -321,24 +326,28 @@ local function stelleFS(name, mitNachricht)
 end
 local function loeseFSauf(name, mitNachricht)
     local rueckmeldung = ""
-    local fs = fahrstrassen[name]
-    if fs == nil then
+    local fahrstr = fahrstrassen[name]
+    if fahrstr == nil then
         return fehler("Fahrstrasse "..name.." nicht projektiert")
     end
     
-    if fs.aufloeser ~= nil then
-        kommunikation.sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb, debug)
-    elseif fs.signale ~= nil then
-        for signal, signalbild in pairs(fs.signale) do
+    if fahrstr.aufloeser ~= nil then
+        kommunikation.sendRedstoneImpulse(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb, debug)
+    elseif fahrstr.signale ~= nil then
+        for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, SIGNAL_HALT)
         end
         
         fahrstrassen[name].status = 4
-        if fs.weichen ~= nil then
-            for i, weiche in pairs(fs.weichen) do
+        
+        stellwerkDatei.loescheFahrstrasse(name)
+        
+        if fahrstr.weichen ~= nil then
+            for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, false)
             end
         end
+        
         fahrstrassen[name].status = 0
     else
        return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
@@ -361,14 +370,14 @@ local function puefeElement(x, y, eName, element, groesse)
             if fahrstrassen[eingabe .. "." .. eName] then
                 fsName = eingabe .. "." .. eName
                 if eingabeModus == "" then
-                    stelleFS(fsName, true)
+                    stelleFahrstrasse(fsName, true)
                 elseif eingabeModus == "AUFL" then
                     loeseFSauf(fsName, true)
                 end
             elseif fahrstrassen[eingabe .. "-" .. eName] then
                 fsName = eingabe .. "-" .. eName
                 if eingabeModus == "" then
-                    stelleFS(fsName, true)
+                    stelleFahrstrasse(fsName, true)
                 elseif eingabeModus == "AUFL" then
                     loeseFSauf(fsName, true)
                 end
@@ -443,6 +452,11 @@ local function reset()
     for name, weiche in pairs(weichen) do
         stelleWeiche(name, false)
     end
+    
+    local fahrstrassen = stellwerkDatei.leseFahrstrassen()
+    for i, fahrstrasse in ipairs(fahrstrassen) do
+        stelleFahrstrasse(fahrstrasse, false, true)
+    end
 end
 
 kommunikation.init(protocol, config.modem, serverName)
@@ -504,6 +518,8 @@ local function onRedstoneChange(pc, side, color, state)
 end
 
 neuzeichnen()
+
+kommunikation.setzteTimer(1, reset)
 
 events.listen(
     nil,
