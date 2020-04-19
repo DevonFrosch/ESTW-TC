@@ -208,25 +208,33 @@ local function neuzeichnen()
 end
 
 -- Callback
+local function fehler(text)
+    nachricht = text
+    print(text)
+end
+local function erfolg(mitNachricht, text)
+    if mitNachricht then
+        nachricht = text
+    end
+    if debug then
+        print(text)
+    end
+end
+
 local function stelleWeiche(name, abzweigend, mitNachricht)
-    local rueckmeldung = ""
     local weiche = weichen[name]
     if weiche == nil then
-        meldung = "stelleWeiche: Weiche "..name.." nicht projektiert"
-    else
-        kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
-        
-        local lage = "gerade"
-        if abzweigend then
-            lage = "abzweigend"
-        end
-        rueckmeldung = "Weiche " .. name .. " umgestellt auf " .. lage
+        return fehler("stelleWeiche: Weiche "..name.." nicht projektiert")
     end
     
-    if mitNachricht then
-        nachricht = rueckmeldung
+    kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
+    
+    local lage = "gerade"
+    if abzweigend then
+        lage = "abzweigend"
     end
-    print(rueckmeldung)
+    
+    erfolg(mitNachricht, "Weiche " .. name .. " umgestellt auf " .. lage)
 end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
     local cnf = signal["stelle_"..signalbild]
@@ -235,10 +243,9 @@ local function aktiviereSignalbild(signal, signalbild, aktiv)
     end
 end
 local function stelleSignal(name, signalbild, mitNachricht)
-    local rueckmeldung = ""
     local signal = signale[name]
     if signal == nil then
-        rueckmeldung = "Signal "..name.." nicht projektiert"
+        return fehler("Signal "..name.." nicht projektiert")
     end
     
     kommunikation.sendRedstoneImpulse("signale", "top", 1, debug)
@@ -255,12 +262,7 @@ local function stelleSignal(name, signalbild, mitNachricht)
         aktiviereSignalbild(signal, signalbild, true)
     end
     
-    rueckmeldung = "Signal " .. name .. " auf " .. signalbild .. " gestellt"
-    
-    if mitNachricht then
-        nachricht = rueckmeldung
-    end
-    print(rueckmeldung)
+    erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
 end
 
 local function kollidierendeFahrstrasse(fs)
@@ -268,7 +270,6 @@ local function kollidierendeFahrstrasse(fs)
         for fName, andereFs in pairs(fahrstrassen) do
             if andereFs.status ~= nil and andereFs.status > 0 then
                 for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
-                    print("Vergleiche "..fsTeil.." mit "..anderesFsTeil)
                     if fsTeil == anderesFsTeil then
                         return fName
                     end
@@ -282,16 +283,16 @@ local function stelleFS(name, mitNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
-        rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
-    elseif fs.steller ~= nil then
+        return fehler("Fahrstrasse "..name.." nicht projektiert")
+    end
+    
+    if fs.steller ~= nil then
         kommunikation.sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb, debug)
-        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
     elseif fs.signale ~= nil then
         -- Kollisionserkennung
         local kollision = kollidierendeFahrstrasse(fs)
         if kollision ~= nil then
-            nachricht = "FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision
-            return
+            return fehler("FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision)
         end
         
         fahrstrassen[name].status = 1
@@ -312,24 +313,21 @@ local function stelleFS(name, mitNachricht)
             stelleSignal(signal, signalbild)
         end
         
-        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
     else
-        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
+        return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
     end
     
-    if mitNachricht then
-        nachricht = rueckmeldung
-    end
-    print(rueckmeldung)
+    erfolg(mitNachricht, "Fahrstrasse " .. name .. " eingestellt")
 end
 local function loeseFSauf(name, mitNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
-        rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
-    elseif fs.aufloeser ~= nil then
+        return fehler("Fahrstrasse "..name.." nicht projektiert")
+    end
+    
+    if fs.aufloeser ~= nil then
         kommunikation.sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb, debug)
-        rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
     elseif fs.signale ~= nil then
         for signal, signalbild in pairs(fs.signale) do
             stelleSignal(signal, SIGNAL_HALT)
@@ -343,13 +341,10 @@ local function loeseFSauf(name, mitNachricht)
         end
         fahrstrassen[name].status = 0
     else
-        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
+       return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
     end
     
-    if mitNachricht then
-        nachricht = rueckmeldung
-    end
-    print(rueckmeldung)
+    erfolg(mitNachricht, "Fahrstrasse " .. name .. " aufgeloest")
 end
 
 local function puefeElement(x, y, eName, element, groesse)
@@ -378,7 +373,7 @@ local function puefeElement(x, y, eName, element, groesse)
                     loeseFSauf(fsName, true)
                 end
             else
-                nachricht = "Keine Fahrstrasse von " .. eingabe .. " nach " .. eName .. " gefunden"
+                fehler("Keine Fahrstrasse von " .. eingabe .. " nach " .. eName .. " gefunden")
             end
         end
         eingabe = ""
@@ -390,9 +385,6 @@ end
 
 local function behandleKlick(x, y)
     nachricht = ""
-    if debug then
-        print("Klick auf "..x.." "..y)
-    end
     
     for name, signal in pairs(signale) do
         if puefeElement(x, y, name, signal, 1) then
