@@ -1,26 +1,10 @@
-function dump(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
-end
+os.loadAPI("tools")
+
+local debug = true
+local kommunikation = tools.loadAPI("kommunikation.lua")
 
 -- load configuration
-local debug = false
-local configFile = "config.lua"
-if not fs.exists(configFile) then
-    print("Config not found")
-    return
-end
-
-os.loadAPI(configFile)
-local config = _G[configFile]
+local config = tools.loadAPI("config.lua")
 
 local configContents = {
     gleisbildDatei = "string",
@@ -63,9 +47,6 @@ local fahrstrassen = config.fahrstrassen
 local eingabe = ""
 local eingabeModus = ""
 local nachricht = ""
-local clientIds = {}
-local clientNames = {}
-local laufendeTimer = {}
 
 local protocolVersion = "STW v1"
 local protocol = protocolVersion .. " " .. config.stellwerkName
@@ -95,174 +76,6 @@ end
 fileHandle.close()
 
 print("Startup, Bildschirm " .. w .. "x" .. h)
-
--- Kommunikation
-function splitString(inputstr)
-    local tbl = {}
-    local i = 1
-    local matches = string.gmatch(inputstr, "([^ ]+)")
-    for part in matches do
-        tbl[i] = part
-        i = i + 1
-    end
-    return tbl
-end
-local function setzteTimer(zeit, callback, ...)
-    local id = os.startTimer(zeit)
-    laufendeTimer[id] = {
-        callback = callback,
-        params = arg,
-    }
-end
-local function behandleTimer(id)
-    local timerData = laufendeTimer[id]
-    if timerData == nil then
-        return
-    end
-    if timerData.callback == nil or timerData.params == nil then
-        return
-    end
-    timerData.callback(unpack(timerData.params))
-end
-
-local function init()
-    if debug then
-        print("Protokoll: "..protocol)
-    end
-    
-    rednet.open(config.modem)
-    rednet.host(protocol, serverName)
-    
-    foundClients = {rednet.lookup(protocol)}
-    if type(foundClients) == "table" then
-        for i, foundClient in ipairs(foundClients) do
-            if debug then
-                print("Frage Client "..foundClient)
-            end
-            rednet.send(foundClient, "HELLO IAM "..serverName, protocol)
-        end
-    end
-end
-local function deinit()
-    rednet.unhost(protocol, serverName)
-    rednet.close(config.modem)
-end
-local function rednetMessageReceived(id, packet)
-    print("Nachricht von "..id..": "..(packet or ""))
-    
-    local message = ""
-    if type(packet) == "table" then
-        message = splitString(packet[1])
-    elseif type(packet) == "string" then
-        message = splitString(packet)
-    else
-        print("Falscher Typ: packet="..type(packet))
-    end
-    
-    local command = message[1]
-    
-    -- HELLO IAM <clientname>
-    if #message == 3 and command == "HELLO" and message[3] ~= serverName then
-        clientIds[message[3]] = id
-        clientNames[id] = message[3]
-        if debug then
-            print("Neuer Client: id="..id..", name="..message[3])
-        end
-    end
-    
-    -- REDSTONE <side> <color> <ON|OFF>
-    if #message == 5 and command == "REDSTONE" then
-        local side, color, state = message[3], message[4], message[5]
-        
-        local pc = clientNames[id]
-        if pc == nil then
-            print("PC nicht registriert: id="..id)
-            return
-        end
-        pc = tostring(pc)
-        
-        -- Signale
-        for sName, signal in pairs(signale) do
-            if signal.hp ~= nil and tostring(signal.hp.pc) == pc and tostring(2 ^ signal.hp.fb) == color and tostring(signal.hp.au) == side then
-                if debug then
-                    print("Signalstatus "..sName)
-                end
-                if state == "ON" then
-                    signal.status = SIGNAL_HP
-                else
-                    signal.status = SIGNAL_HALT
-                end
-            elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
-                if debug then
-                    print("Signalstatus "..sName)
-                end
-                if state == "ON" then
-                    signal.status = SIGNAL_SH
-                else
-                    signal.status = SIGNAL_HALT
-                end
-            end
-        end
-        
-        -- Gleise
-        for gName, gleis in pairs(gleise) do
-            if tostring(gleis.pc) == pc and tostring(gleis.au) == side
-                    and tostring(2 ^ gleis.fb) == color then
-                if debug then
-                    print("Gleisstatus "..gName)
-                end
-                if state == "ON" then
-                    gleis.status = 1
-                else
-                    gleis.status = 0
-                end
-            end
-        end
-        
-        -- Fahrstrassen
-        for fName, fahrstrasse in pairs(fahrstrassen) do
-            if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
-                    and tostring(2 ^ fahrstrasse.melder.fb) == color then
-                if debug then
-                    print("Fahrstrassenstatus "..fName.." "..state)
-                end
-                if state == "ON" then
-                    fahrstrasse.status = 3
-                else
-                    fahrstrasse.status = 0
-                end
-            end
-        end
-    end
-end
-local function sendRestoneMessage(clientNumber, side, colorIndex, bit)
-    local index = 2 ^ colorIndex
-    clientNumber = tostring(clientNumber)
-    if clientIds[clientNumber] == nil then
-        print("Kein Client fuer " .. (clientNumber or "nil") .. "verbunden")
-        return
-    end
-
-    local message = "REDSTONE " .. serverName .. " " .. side
-    
-    message = message .. " " .. index
-    
-    if bit then
-        message = message .. " ON"
-    else
-        message = message .. " OFF"
-    end
-    
-    print("SEND "..message)
-    rednet.send(clientIds[clientNumber], message, protocol)
-end
-local function sendRedstoneImpulse(clientNumber, side, colorIndex)
-    sendRestoneMessage(clientNumber, side, colorIndex, true)
-    local resetRedstone = function(clientNumber, side, colorIndex)
-        sendRestoneMessage(clientNumber, side, colorIndex, false)
-    end
-    setzteTimer(0.2, resetRedstone, clientNumber, side, colorIndex)
-end
 
 -- Stellbild
 local function zeichne(x, y, farbe, text)
@@ -425,7 +238,7 @@ local function stelleWeiche(name, abzweigend, keineNachricht)
     if weiche == nil then
         rueckmeldung = "stelleWeiche: Weiche "..name.." nicht projektiert"
     else
-        sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend)
+        kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
         
         local lage = "gerade"
         if abzweigend then
@@ -443,7 +256,7 @@ end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
     local cnf = signal["stelle_"..signalbild]
     if cnf ~= nil then
-        sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv)
+        kommunikation.sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
     end
 end
 local function stelleSignal(name, signalbild, keineNachricht)
@@ -453,8 +266,10 @@ local function stelleSignal(name, signalbild, keineNachricht)
         rueckmeldung = "Signal "..name.." nicht projektiert"
     end
     
+    kommunikation.sendRedstoneImpulse("signale", "top", 1, debug)
+    
     if signal[signalbild] ~= nil then
-        sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb)
+        kommunikation.sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
     elseif signalbild == SIGNAL_HALT then
         aktiviereSignalbild(signal, SIGNAL_HP, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
@@ -496,7 +311,7 @@ local function stelleFS(name, keineNachricht)
     if fs == nil then
         rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
     elseif fs.steller ~= nil then
-        sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
+        kommunikation.sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb, debug)
         rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
     elseif fs.signale ~= nil then
         -- Kollisionserkennung
@@ -542,7 +357,7 @@ local function loeseFSauf(name, keineNachricht)
     if fs == nil then
         rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
     elseif fs.aufloeser ~= nil then
-        sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb)
+        kommunikation.sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb, debug)
         rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
     elseif fs.signale ~= nil then
         for signal, signalbild in pairs(fs.signale) do
@@ -655,7 +470,63 @@ local function behandleKlick(x, y)
     end
 end
 
-init()
+kommunikation.init(protocol, config.modem, serverName)
+
+-- Kommunikation
+local function onRedstoneChange(pc, side, color, state)
+    -- Signale
+    for sName, signal in pairs(signale) do
+        if signal.hp ~= nil and tostring(signal.hp.pc) == pc and tostring(2 ^ signal.hp.fb) == color and tostring(signal.hp.au) == side then
+            if debug then
+                print("Signalstatus "..sName)
+            end
+            if state == "ON" then
+                signal.status = SIGNAL_HP
+            else
+                signal.status = SIGNAL_HALT
+            end
+        elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
+            if debug then
+                print("Signalstatus "..sName)
+            end
+            if state == "ON" then
+                signal.status = SIGNAL_SH
+            else
+                signal.status = SIGNAL_HALT
+            end
+        end
+    end
+    
+    -- Gleise
+    for gName, gleis in pairs(gleise) do
+        if tostring(gleis.pc) == pc and tostring(gleis.au) == side
+                and tostring(2 ^ gleis.fb) == color then
+            if debug then
+                print("Gleisstatus "..gName)
+            end
+            if state == "ON" then
+                gleis.status = 1
+            else
+                gleis.status = 0
+            end
+        end
+    end
+    
+    -- Fahrstrassen
+    for fName, fahrstrasse in pairs(fahrstrassen) do
+        if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
+                and tostring(2 ^ fahrstrasse.melder.fb) == color then
+            if debug then
+                print("Fahrstrassenstatus "..fName.." "..state)
+            end
+            if state == "ON" then
+                fahrstrasse.status = 3
+            else
+                fahrstrasse.status = 0
+            end
+        end
+    end
+end
 
 local eventData = {}
 local function charPressed()
@@ -700,12 +571,12 @@ repeat
     local eventNumber = parallel.waitForAny(charPressed, rednetReceive, monitorTouch, timerEvent)
     
     if eventNumber == 2 then
-        rednetMessageReceived(eventData.id, eventData.msg)
+        kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug)
     elseif eventNumber == 3 then
         behandleKlick(eventData.x, eventData.y)
     elseif eventNumber == 4 then
-        behandleTimer(eventData.id)
+        kommunikation.behandleTimer(eventData.id)
     end
 until eventNumber == 1 and eventData.char == "x"
 
-deinit()
+kommunikation.deinit()

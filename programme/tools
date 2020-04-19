@@ -1,0 +1,25 @@
+dump = function(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+loadAPI = function(fileName)
+    if fileName == nil then
+        print("Bibliotheksname ist nil -> ungueltig")
+    end
+    if not fs.exists(fileName) then
+        print("Bibliothek "..fileName.." nicht gefunden")
+        return
+    end
+    
+    os.loadAPI(fileName)
+    return _G[fileName]
+end
