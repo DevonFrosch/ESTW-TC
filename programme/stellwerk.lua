@@ -12,7 +12,7 @@ function dump(o)
 end
 
 -- load configuration
-local debug = true
+local debug = false
 local configFile = "config.lua"
 if not fs.exists(configFile) then
     print("Config not found")
@@ -70,6 +70,11 @@ local laufendeTimer = {}
 local protocolVersion = "STW v1"
 local protocol = protocolVersion .. " " .. config.stellwerkName
 local serverName = "Server"
+
+local SIGNAL_HALT = "halt"
+local SIGNAL_HP = "hp"
+local SIGNAL_SH = "sh"
+local SIGNAL_ERS = "ers"
 
 local mon = peripheral.wrap(config.bildschirm)
 mon.clear()
@@ -183,18 +188,18 @@ local function rednetMessageReceived(id, packet)
                     print("Signalstatus "..sName)
                 end
                 if state == "ON" then
-                    signal.status = 1
+                    signal.status = SIGNAL_HP
                 else
-                    signal.status = 0
+                    signal.status = SIGNAL_HALT
                 end
             elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
                 if debug then
                     print("Signalstatus "..sName)
                 end
                 if state == "ON" then
-                    signal.status = 2
+                    signal.status = SIGNAL_SH
                 else
-                    signal.status = 0
+                    signal.status = SIGNAL_HALT
                 end
             end
         end
@@ -291,9 +296,9 @@ local function zeichneSignal(signal, symbolL, symbolR)
     end
     
     local farbe = colors.red
-    if signal.status == 1 then
+    if signal.status == SIGNAL_HP then
         farbe = colors.lime
-    elseif signal.status == 2 then
+    elseif signal.status == SIGNAL_SH then
         farbe = colors.yellow
     end
     
@@ -315,7 +320,6 @@ end
 local function zeichneFSTeile(fs, farbe)
     if fs.status and fs.status > 0 then
         for i, item in ipairs(fs.fsTeile) do
-            print("Zeichne FS-Teil "..item.." farbe="..farbe)
             local fsTeil
             if fahrstrassenteile[item] then
                 fsTeil = fahrstrassenteile[item]
@@ -374,7 +378,7 @@ local function neuzeichnen()
     
     -- zeichne Signale
     for i, signal in pairs(signale) do
-        if signal.hp ~= nil then
+        if signal.hp ~= nil or signal.stelle_hp ~= nil then
             zeichneSignal(signal, "<|", "|>")
         else
             zeichneSignal(signal, "<", ">")
@@ -436,6 +440,40 @@ local function stelleWeiche(name, abzweigend, keineNachricht)
         nachricht = rueckmeldung
     end
 end
+local function aktiviereSignalbild(signal, signalbild, aktiv)
+    local cnf = signal["stelle_"..signalbild]
+    if cnf ~= nil then
+        sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv)
+    end
+end
+local function stelleSignal(name, signalbild, keineNachricht)
+    local rueckmeldung = ""
+    local signal = signale[name]
+    if signal == nil then
+        rueckmeldung = "Signal "..name.." nicht projektiert"
+    end
+    
+    if signal[signalbild] ~= nil then
+        sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb)
+    elseif signalbild == SIGNAL_HALT then
+        aktiviereSignalbild(signal, SIGNAL_HP, false)
+        aktiviereSignalbild(signal, SIGNAL_SH, false)
+        aktiviereSignalbild(signal, SIGNAL_ERS, false)
+        signale[name].status = signalbild
+    else
+        signale[name].status = signalbild
+        aktiviereSignalbild(signal, signalbild, true)
+    end
+    
+    rueckmeldung = "Signal " .. name .. " auf " .. signalbild .. " gestellt"
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
+    end
+end
+
 local function stelleFS(name, keineNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
@@ -444,7 +482,10 @@ local function stelleFS(name, keineNachricht)
     elseif fs.steller ~= nil then
         sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
         rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
-    else
+    elseif fs.signale ~= nil then
+        
+        -- Kollisionserkennung
+        
         fahrstrassen[name].status = 1
         
         if fs.weichen ~= nil then
@@ -459,7 +500,14 @@ local function stelleFS(name, keineNachricht)
         
         fahrstrassen[name].status = 3
         
+        for signal, signalbild in pairs(fs.signale) do
+            print("stelleSignal "..signal.." "..signalbild)
+            stelleSignal(signal, signalbild, false)
+        end
+        
         rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
+    else
+        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
     end
     
     if keineNachricht then
@@ -467,7 +515,6 @@ local function stelleFS(name, keineNachricht)
     else
         nachricht = rueckmeldung
     end
-    -- nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
 end
 local function loeseFSauf(name, keineNachricht)
     local rueckmeldung = ""
@@ -477,7 +524,11 @@ local function loeseFSauf(name, keineNachricht)
     elseif fs.aufloeser ~= nil then
         sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb)
         rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
-    else
+    elseif fs.signale ~= nil then
+        for signal, signalbild in pairs(fs.signale) do
+            stelleSignal(signal, SIGNAL_HALT, true)
+        end
+        
         fahrstrassen[name].status = 4
         if fs.weichen ~= nil then
             for i, weiche in pairs(fs.weichen) do
@@ -485,26 +536,8 @@ local function loeseFSauf(name, keineNachricht)
             end
         end
         fahrstrassen[name].status = 0
-    end
-    
-    if keineNachricht then
-        print(rueckmeldung)
     else
-        nachricht = rueckmeldung
-    end
-end
-local function signalHalt(name, keineNachricht)
-    local rueckmeldung = ""
-    local signal = signale[name]
-    if signal == nil then
-        rueckmeldung = "Signal "..name.." nicht projektiert"
-    end
-    local rueckmeldung = ""
-    if signal.halt == nil then
-        rueckmeldung = "Signal " .. name .. " nicht richtig projektiert (halt)"
-    else
-        sendRedstoneImpulse(signal.halt.pc, signal.halt.au, signal.halt.fb)
-        rueckmeldung = "Signal " .. name .. " auf Halt gestellt"
+        nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
     end
     
     if keineNachricht then
@@ -518,7 +551,7 @@ local function puefeElement(x, y, eName, element, groesse)
     if (x >= element.x and x <= element.x + groesse) and y == element.y then
         if eingabe == "" then
             if eingabeModus == "HALT" then
-                signalHalt(eName)
+                stelleSignal(eName, SIGNAL_HALT, true)
             else
                 eingabe = eName
                 return true
@@ -588,7 +621,7 @@ local function behandleKlick(x, y)
     end
     if (x >= 15 and x <= 18) and y == (h-3) then
         if eingabe ~= "" then
-            signalHalt(eingabe)
+            stelleSignal(eingabe, SIGNAL_HALT, true)
             eingabe = ""
             eingabeModus = ""
         else
