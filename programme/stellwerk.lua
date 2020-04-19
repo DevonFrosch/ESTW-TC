@@ -2,6 +2,7 @@ os.loadAPI("tools")
 
 local debug = true
 local kommunikation = tools.loadAPI("kommunikation.lua")
+local bildschirm = tools.loadAPI("bildschirm.lua")
 
 -- load configuration
 local config = tools.loadAPI("config.lua")
@@ -57,15 +58,13 @@ local SIGNAL_HP = "hp"
 local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
 
-local mon = peripheral.wrap(config.bildschirm)
-mon.clear()
-mon.setCursorPos(1,1)
-w, h = mon.getSize()
+bildschirm.init(config.bildschirm)
+local hoehe = bildschirm.hoehe()
 
 local fileHandle = fs.open(config.gleisbildDatei, "r")
 
 local gleisbild = {}
-for i = 1, h do
+for i = 1, hoehe do
     local line = fileHandle.readLine()
     if line == nil then
         break
@@ -75,33 +74,9 @@ end
 
 fileHandle.close()
 
-print("Startup, Bildschirm " .. w .. "x" .. h)
+print("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
 
 -- Stellbild
-local function zeichne(x, y, farbe, text)
-    if x == nil then
-        print("zeichne: x ist nil "..text)
-        return
-    end
-    if y == nil then
-        print("zeichne: y ist nil")
-        return
-    end
-    if farbe == nil then
-        print("zeichne: farbe ist nil")
-        return
-    end
-    if text == nil then
-        print("zeichne: text ist nil")
-        return
-    end
-    mon.setTextColor(farbe)
-    mon.setCursorPos(x, y)
-    mon.write(text)
-end
-local function zeichneItem(position, farbe, text)
-    zeichne(position.x, position.y, farbe, text)
-end
 local function zeichneSignal(signal, symbolL, symbolR)
     local symbol = symbolL
     if signal.richtung == "r" then
@@ -115,7 +90,7 @@ local function zeichneSignal(signal, symbolL, symbolR)
         farbe = colors.yellow
     end
     
-    zeichneItem(signal, farbe, symbol)
+    bildschirm.zeichneElement(signal, farbe, symbol)
 end
 local function zeichneGleis(gleis, farbe)
     if gleis.status == 1 then
@@ -123,10 +98,10 @@ local function zeichneGleis(gleis, farbe)
     end
     
     if gleis.text then
-        zeichneItem(gleis, farbe, gleis.text)
+        bildschirm.zeichneElement(gleis, farbe, gleis.text)
     else
         for j, abschnitt in ipairs(gleis.abschnitte) do
-            zeichne(abschnitt.x, abschnitt.y, farbe, abschnitt.text)
+            bildschirm.zeichne(abschnitt.x, abschnitt.y, farbe, abschnitt.text)
         end
     end
 end
@@ -136,19 +111,19 @@ local function zeichneFSTeile(fs, farbe)
             local fsTeil
             if fahrstrassenteile[item] then
                 fsTeil = fahrstrassenteile[item]
-                zeichneItem(fsTeil, farbe, fsTeil.text)
+                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
             if fahrstrassenteile[item.."/1"] then
                 fsTeil = fahrstrassenteile[item.."/1"]
-                zeichneItem(fsTeil, farbe, fsTeil.text)
+                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
             if fahrstrassenteile[item.."/2"] then
                 fsTeil = fahrstrassenteile[item.."/2"]
-                zeichneItem(fsTeil, farbe, fsTeil.text)
+                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
             if fahrstrassenteile[item.."/3"] then
                 fsTeil = fahrstrassenteile[item.."/3"]
-                zeichneItem(fsTeil, farbe, fsTeil.text)
+                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
         end
     end
@@ -159,24 +134,24 @@ local function zeichneBahnuebergang(name, bue)
         farbe = colors.lime
     end
     
-    zeichne(bue.x, bue.y, farbe, name)
+    bildschirm.zeichne(bue.x, bue.y, farbe, name)
     for i = 1, bue.hoehe do
-        zeichne(bue.x, bue.y + i, farbe, "| |")
+        bildschirm.zeichne(bue.x, bue.y + i, farbe, "| |")
     end
 end
 
 local function neuzeichnen()
     -- Hintergrundbild
-    mon.clear()
-    w, h = mon.getSize()
+    bildschirm.leeren()
+    local hoehe = bildschirm.hoehe()
     
     for i, item in pairs(gleisbild) do
         if type(item) == "string" then
-            zeichne(1, i, colors.white, item)
+            bildschirm.zeichne(1, i, colors.white, item)
         else
             local offset = 1
             for j, teil in ipairs(item) do
-                zeichne(offset, i, colors.white, teil)
+                bildschirm.zeichne(offset, i, colors.white, teil)
                 offset = offset + string.len(teil)
             end
         end
@@ -185,7 +160,7 @@ local function neuzeichnen()
     -- zeichen Fahrstrassenteile
     if debug then
         for i, fsTeil in pairs(fahrstrassenteile) do
-            zeichneItem(fsTeil, colors.orange, fsTeil.text)
+            bildschirm.zeichneElement(fsTeil, colors.orange, fsTeil.text)
         end
     end
     
@@ -218,16 +193,16 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    zeichne(1, h-3, colors.white, "LOE    AUFL   HALT")
+    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT")
     
-    zeichne(1, h-2, colors.white, "EIN:")
+    bildschirm.zeichne(1, hoehe-2, colors.white, "EIN:")
     if eingabe then
-        zeichne(6, h-2, colors.white, eingabeModus.." "..eingabe)
+        bildschirm.zeichne(6, hoehe-2, colors.white, eingabeModus.." "..eingabe)
     end
     
-    zeichne(1, h-1, colors.white, "VQ:")
+    bildschirm.zeichne(1, hoehe-1, colors.white, "VQ:")
     if nachricht then
-        zeichne(6, h-1, colors.white, nachricht)
+        bildschirm.zeichne(6, hoehe-1, colors.white, nachricht)
     end
 end
 
@@ -443,18 +418,20 @@ local function behandleKlick(x, y)
         end
     end
     
+    local hoehe = bildschirm.hoehe()
+    
     -- Loeschen
-    if (x >= 0 and x <= 3) and y == (h-3) then
+    if (x >= 0 and x <= 3) and y == (hoehe-3) then
         eingabe = ""
         nachricht = ""
         eingabeModus = ""
     end
     
     -- Aktionen
-    if (x >= 8 and x <= 11) and y == (h-3) then
+    if (x >= 8 and x <= 11) and y == (hoehe-3) then
         eingabeModus = "AUFL"
     end
-    if (x >= 15 and x <= 18) and y == (h-3) then
+    if (x >= 15 and x <= 18) and y == (hoehe-3) then
         if eingabe ~= "" then
             stelleSignal(eingabe, SIGNAL_HALT, true)
             eingabe = ""
