@@ -474,17 +474,37 @@ local function stelleSignal(name, signalbild, keineNachricht)
     end
 end
 
+local function kollidierendeFahrstrasse(fs)
+    for i, fsTeil in ipairs(fs.fsTeile) do
+        print(i.." fsTeil "..fsTeil)
+        for fName, andereFs in pairs(fahrstrassen) do
+            if andereFs.status ~= nil and andereFs.status > 0 then
+                for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
+                    print("Vergleiche "..fsTeil.." mit "..anderesFsTeil)
+                    if fsTeil == anderesFsTeil then
+                        return fName
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
 local function stelleFS(name, keineNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
-        rueckmeldung = "stelleFS: FS "..name.." nicht projektiert"
+        rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
     elseif fs.steller ~= nil then
         sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
         rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
     elseif fs.signale ~= nil then
-        
         -- Kollisionserkennung
+        local kollision = kollidierendeFahrstrasse(fs)
+        if kollision ~= nil then
+            nachricht = "FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision
+            return
+        end
         
         fahrstrassen[name].status = 1
         
@@ -520,7 +540,7 @@ local function loeseFSauf(name, keineNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
-        rueckmeldung = "FS "..name.." nicht projektiert"
+        rueckmeldung = "Fahrstrasse "..name.." nicht projektiert"
     elseif fs.aufloeser ~= nil then
         sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb)
         rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
