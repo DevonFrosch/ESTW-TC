@@ -3,6 +3,7 @@ os.loadAPI("tools")
 local debug = true
 local kommunikation = tools.loadAPI("kommunikation.lua")
 local bildschirm = tools.loadAPI("bildschirm.lua")
+local events = tools.loadAPI("events.lua")
 
 -- load configuration
 local config = tools.loadAPI("config.lua")
@@ -266,7 +267,6 @@ end
 
 local function kollidierendeFahrstrasse(fs)
     for i, fsTeil in ipairs(fs.fsTeile) do
-        print(i.." fsTeil "..fsTeil)
         for fName, andereFs in pairs(fahrstrassen) do
             if andereFs.status ~= nil and andereFs.status > 0 then
                 for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
@@ -311,7 +311,6 @@ local function stelleFS(name, keineNachricht)
         fahrstrassen[name].status = 3
         
         for signal, signalbild in pairs(fs.signale) do
-            print("stelleSignal "..signal.." "..signalbild)
             stelleSignal(signal, signalbild, false)
         end
         
@@ -505,55 +504,23 @@ local function onRedstoneChange(pc, side, color, state)
     end
 end
 
-local eventData = {}
-local function charPressed()
-    local event, character = os.pullEvent("char")
-    eventData = {
-        event = event,
-        char = character
-    }
-end
-local function rednetReceive()
-    while true do
-        local id, msg, proto = rednet.receive()
-        if proto == protocol then
-            eventData = {
-                id = id,
-                msg = msg,
-                protocol = protocol
-            }
-            return
-        end
-    end
-end
-local function monitorTouch()
-    local event, side, x, y = os.pullEvent("monitor_touch")
-    eventData = {
-        event = event,
-        x = x,
-        y = y,
-    }
-end
-local function timerEvent()
-    local event, id = os.pullEvent("timer")
-    eventData = {
-        event = event,
-        id = id,
-    }
-end
+neuzeichnen()
 
-repeat
-    neuzeichnen()
-    
-    local eventNumber = parallel.waitForAny(charPressed, rednetReceive, monitorTouch, timerEvent)
-    
-    if eventNumber == 2 then
+events.listen(
+    nil,
+    function()
+        neuzeichnen()
+    end,
+    nil,
+    function(eventData)
         kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug)
-    elseif eventNumber == 3 then
+    end,
+    function(eventData)
         behandleKlick(eventData.x, eventData.y)
-    elseif eventNumber == 4 then
+    end,
+    function(eventData)
         kommunikation.behandleTimer(eventData.id)
     end
-until eventNumber == 1 and eventData.char == "x"
+)
 
 kommunikation.deinit()
