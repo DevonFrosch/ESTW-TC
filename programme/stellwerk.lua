@@ -27,6 +27,8 @@ local configContents = {
     signale = "table",
     fsZiele = "table",
     bahnuebergaenge = "table",
+    gleise = "table",
+    weichen = "table",
     fahrstrassenteile = "table",
     fahrstrassen = "table",
     bildschirm = "string",
@@ -53,8 +55,9 @@ local fsZiele = config.fsZiele
 local bahnuebergaenge = config.bahnuebergaenge
 -- Status: 0 = Frei, 1 = Besetzt
 local gleise = config.gleise
+local weichen = config.weichen
 local fahrstrassenteile = config.fahrstrassenteile
--- Status: 0 = Nichts, 1 = Wird eingestellt, 2 = Festgelegt, 3 = Signalfreigabe
+-- Status: 0 = Nichts, 1 = Wird eingestellt, 2 = Festgelegt, 3 = Signalfreigabe, 4 = Wird aufgelöst
 local fahrstrassen = config.fahrstrassen
 
 local eingabe = ""
@@ -213,13 +216,13 @@ local function rednetMessageReceived(id, packet)
         
         -- Fahrstrassen
         for fName, fahrstrasse in pairs(fahrstrassen) do
-            if tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
+            if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
                     and tostring(2 ^ fahrstrasse.melder.fb) == color then
                 if debug then
                     print("Fahrstrassenstatus "..fName.." "..state)
                 end
                 if state == "ON" then
-                    fahrstrasse.status = 4
+                    fahrstrasse.status = 3
                 else
                     fahrstrasse.status = 0
                 end
@@ -310,7 +313,7 @@ local function zeichneGleis(gleis, farbe)
     end
 end
 local function zeichneFSTeile(fs, farbe)
-    if fs.status > 0 then
+    if fs.status and fs.status > 0 then
         for i, item in ipairs(fs.fsTeile) do
             print("Zeichne FS-Teil "..item.." farbe="..farbe)
             local fsTeil
@@ -388,6 +391,7 @@ local function neuzeichnen()
         local fsFarbe = colors.lime
         if fs.rangieren then
             fsFarbe = colors.blue
+        end
         zeichneFSTeile(fs, fsFarbe)
     end
     
@@ -411,33 +415,6 @@ local function neuzeichnen()
 end
 
 -- Callback
-local function stelleFS(name, keineNachricht)
-    local rueckmeldung = ""
-    local fs = fahrstrassen[name]
-    if fs == nil then
-        rueckmeldung = "stelleFS: FS "..name.." nicht projektiert"
-    else if fs.steller ~= nil then
-        sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
-        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
-    else
-        fahrstrassen[name].status = 1
-        
-        if fs.weichen ~= nil then
-            for i, weiche in pairs(fs.weichen) do
-                stelleWeiche(weiche, true)
-            end
-        end
-        
-        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
-    end
-    
-    if keineNachricht then
-        print(rueckmeldung)
-    else
-        nachricht = rueckmeldung
-    end
-    -- nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
-end
 local function stelleWeiche(name, abzweigend, keineNachricht)
     local rueckmeldung = ""
     local weiche = weichen[name]
@@ -459,16 +436,55 @@ local function stelleWeiche(name, abzweigend, keineNachricht)
         nachricht = rueckmeldung
     end
 end
+local function stelleFS(name, keineNachricht)
+    local rueckmeldung = ""
+    local fs = fahrstrassen[name]
+    if fs == nil then
+        rueckmeldung = "stelleFS: FS "..name.." nicht projektiert"
+    elseif fs.steller ~= nil then
+        sendRedstoneImpulse(fs.steller.pc, fs.steller.au, fs.steller.fb)
+        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
+    else
+        fahrstrassen[name].status = 1
+        
+        if fs.weichen ~= nil then
+            for i, weiche in pairs(fs.weichen) do
+                stelleWeiche(weiche, true)
+            end
+        end
+        
+        fahrstrassen[name].status = 2
+        
+        -- Gleisbelegung prüfen
+        
+        fahrstrassen[name].status = 3
+        
+        rueckmeldung = "Fahrstrasse " .. name .. " eingestellt"
+    end
+    
+    if keineNachricht then
+        print(rueckmeldung)
+    else
+        nachricht = rueckmeldung
+    end
+    -- nachricht = "Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)"
+end
 local function loeseFSauf(name, keineNachricht)
     local rueckmeldung = ""
     local fs = fahrstrassen[name]
     if fs == nil then
         rueckmeldung = "FS "..name.." nicht projektiert"
-    else if fs.aufloeser == nil then
-        rueckmeldung = "Fahrstrasse " .. name .. " nicht richtig projektiert (aufloeser)"
-    else
+    elseif fs.aufloeser ~= nil then
         sendRedstoneImpulse(fs.aufloeser.pc, fs.aufloeser.au, fs.aufloeser.fb)
         rueckmeldung = "Fahrstrasse " .. name .. " aufgeloest"
+    else
+        fahrstrassen[name].status = 4
+        if fs.weichen ~= nil then
+            for i, weiche in pairs(fs.weichen) do
+                stelleWeiche(weiche, false)
+            end
+        end
+        fahrstrassen[name].status = 0
     end
     
     if keineNachricht then
