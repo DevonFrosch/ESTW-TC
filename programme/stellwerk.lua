@@ -569,7 +569,7 @@ nachricht = "Verbinde..."
 neuzeichnen()
 
 -- warte 5 Sekunden, damit die Clients starten können.
--- kommunikation.setzteTimer(5, reset)
+kommunikation.setzteTimer(5, reset)
 
 events.listen({
     onRednetReceive = function(eventData)

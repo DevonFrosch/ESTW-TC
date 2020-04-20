@@ -70,7 +70,7 @@ end
 
 -- Server-Funktionen
 rednetMessageReceivedServer = function(id, packet, onchange, debug)
-    local message = getMessage(packet, id, true)
+    local message = getMessage(packet, id, debug)
     
     if message == nil then
         return false
