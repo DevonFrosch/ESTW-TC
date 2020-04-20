@@ -1,587 +1,615 @@
-os.loadAPI("bin/tools")
-
-local debug = false
-local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
-local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
-local events = tools.loadAPI("events.lua", "bin")
-local fahrstrassenDatei = tools.loadAPI("fahrstrassenDatei.lua", "bin")
-
--- load configuration
-local config = tools.loadAPI("config.lua")
-
-local configContents = {
-    gleisbildDatei = "string",
-    signale = "table",
-    fsZiele = "table",
-    bahnuebergaenge = "table",
-    gleise = "table",
-    weichen = "table",
-    fahrstrassenteile = "table",
-    fahrstrassen = "table",
-    bildschirm = "string",
-    modem = "string",
-    stellwerkName = "string",
-}
-
-for name, typ in pairs(configContents) do
-    if type(config[name]) ~= typ then
-        print("Config: kein "..name)
-        return
-    end
-end
-
--- load text
-if not fs.exists(config.gleisbildDatei) then
-    print("Datei " .. config.gleisbildDatei .. " nicht gefunden")
-    return
-end
-
--- Status: 0 = Halt, 1 = Fahrt, 2 = Rangierfahrt
-local signale = config.signale
-local fsZiele = config.fsZiele
-local bahnuebergaenge = config.bahnuebergaenge
--- Status: 0 = Frei, 1 = Besetzt
-local gleise = config.gleise
-local weichen = config.weichen
-local fahrstrassenteile = config.fahrstrassenteile
--- Status: 0 = Nichts, 1 = Wird eingestellt, 2 = Festgelegt, 3 = Signalfreigabe, 4 = Wird aufgelöst
-local fahrstrassen = config.fahrstrassen
-local speichereFahrstrassen = config.speichereFahrstrassen or false
-
-local eingabe = ""
-local eingabeModus = ""
-local nachricht = ""
-
-local protocolVersion = "STW v1"
-local protocol = protocolVersion .. " " .. config.stellwerkName
-local serverName = "Server"
-
-local SIGNAL_HALT = "halt"
 local SIGNAL_HP = "hp"
 local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
 
-bildschirm.init(config.bildschirm)
-local hoehe = bildschirm.hoehe()
+-- Richtung: r = nach rechts, l = nach links
+signale = {
+	-- Hauptsignale
+    ["A"]    = {x = 09,  y = 10, richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 0},
+        stelle_ers = {pc = "signale", au = "left",   fb = 0},
+    },
+    ["AA"]   = {x = 09,  y = 08,  richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 1},
+        stelle_ers = {pc = "signale", au = "left",   fb = 1},
+    },
+    ["B"]    = {x = 09, y = 04,  richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 2},
+        stelle_ers = {pc = "signale", au = "left",   fb = 2},
+    },
+    ["F"]    = {x = 66, y = 08,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 3},
+        stelle_ers = {pc = "signale", au = "left",   fb = 3},
+    },
+    ["FF"]   = {x = 66, y = 10, richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 4},
+        stelle_ers = {pc = "signale", au = "left",   fb = 4},
+    },
+    ["G"]    = {x = 62, y = 02,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 5},
+        stelle_ers = {pc = "signale", au = "left",   fb = 5},
+    },
+    ["N1"]   = {x = 44, y = 12, richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 7},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 7},
+        stelle_ers = {pc = "signale", au = "left",   fb = 7},
+    },
+    ["N2"]   = {x = 44, y = 10, richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 8},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 8},
+        stelle_ers = {pc = "signale", au = "left",   fb = 8},
+    },
+    ["N4"]   = {x = 44, y = 06,  richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 9},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 9},
+        stelle_ers = {pc = "signale", au = "left",   fb = 9},
+    },
+    ["N5-6"] = {x = 55, y = 02,  richtung = "r",
+        stelle_hp  = {pc = "signale", au = "right", fb = 10},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 10},
+        stelle_ers = {pc = "signale", au = "left",   fb = 10},
+    },
+    ["P1"]   = {x = 31, y = 12, richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 11},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 11},
+        stelle_ers = {pc = "signale", au = "left",   fb = 11},
+    },
+    ["P3"]   = {x = 31, y = 08,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 12},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 12},
+        stelle_ers = {pc = "signale", au = "left",   fb = 12},
+    },
+    ["P4"]   = {x = 31, y = 06,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 13},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 13},
+        stelle_ers = {pc = "signale", au = "left",   fb = 13},
+    },
+    ["P5"]   = {x = 31, y = 04,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 14},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 14},
+        stelle_ers = {pc = "signale", au = "left",   fb = 14},
+    },
+    ["P6"]   = {x = 31, y = 02,  richtung = "l",
+        stelle_hp  = {pc = "signale", au = "right", fb = 15},
+        stelle_sh  = {pc = "signale", au = "top",  fb = 15},
+        stelle_ers = {pc = "signale", au = "left",   fb = 15},
+    },
+	
+	-- Sperrsignale
+    ["L003X"] = {x = 45,  y = 08, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 0},
+    },
+    ["L005X"] = {x = 45,  y = 04, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 1},
+    },
+    ["L006X"] = {x = 45,  y = 02, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 2},
+    },
+    ["L012X"] = {x = 16,  y = 10, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 3},
+    },
+    ["L013X"] = {x = 16,  y = 08, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 4},
+    },
+    ["L015X"] = {x = 16,  y = 04, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 5},
+    },
+    ["L002Y"] = {x = 31,  y = 10, richtung = "l",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 6},
+    },
+    ["L022Y"] = {x = 60,  y = 10, richtung = "l",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 7},
+    },
+}
 
-local fileHandle = fs.open(config.gleisbildDatei, "r")
+fsZiele = {
+    ["BR"]  = {x = 01, y = 04, laenge = 7},
+    ["SF"]  = {x = 01, y = 08, laenge = 7},
+    ["SFG"] = {x = 01, y = 10, laenge = 7},
+    ["EH"]  = {x = 65, y = 02, laenge = 6},
+    ["TLG"] = {x = 69, y = 08, laenge = 7},
+    ["TL"]  = {x = 69, y = 10, laenge = 7},
+    ["012"] = {x = 12, y = 10, laenge = 3},
+    ["013"] = {x = 12, y = 08, laenge = 3},
+    ["015"] = {x = 12, y = 04, laenge = 3},
+    ["022"] = {x = 62, y = 10, laenge = 3},
+}
 
-local gleisbild = {}
-for i = 1, hoehe do
-    local line = fileHandle.readLine()
-    if line == nil then
-        break
-    end
-    gleisbild[i] = line
-end
+bahnuebergaenge = {}
 
-fileHandle.close()
+gleise = {
+    ["001"] = {x = 34, y = 12, pc = "weiche+belegung", au = "left", fb = 0, text = "--- 1 ---"},
+    ["002"] = {x = 34, y = 10, pc = "weiche+belegung", au = "left", fb = 1, text = "--- 2 ---"},
+    ["003"] = {x = 34, y = 08, pc = "weiche+belegung", au = "left", fb = 2, text = "--- 3 ---"},
+    ["004"] = {x = 34, y = 06, pc = "weiche+belegung", au = "left", fb = 3, text = "--- 4 ---"},
+    ["005"] = {x = 34, y = 04, pc = "weiche+belegung", au = "left", fb = 4, text = "--- 5 ---"},
+    ["006"] = {x = 34, y = 02, pc = "weiche+belegung", au = "left", fb = 5, text = "--- 6 ---"},
+    ["BR"]  = {x = 05, y = 04, pc = "weiche+belegung", au = "left", fb = 6, text = "<<-"},
+    ["SF"]  = {x = 05, y = 08, pc = "weiche+belegung", au = "left", fb = 7, text = "<<-"},
+    ["SFG"] = {x = 05, y = 10, pc = "weiche+belegung", au = "left", fb = 8, text = "<<-"},
+    ["EH"]  = {x = 65, y = 02, pc = "weiche+belegung", au = "left", fb = 9, text = "->>"},
+    ["TLG"] = {x = 69, y = 08, pc = "weiche+belegung", au = "left", fb = 10, text = "->>"},
+    ["TL"]  = {x = 69, y = 10, pc = "weiche+belegung", au = "left", fb = 11, text = "->>"},
+    ["012"] = {x = 12, y = 10, pc = "weiche+belegung", au = "left", fb = 12, text = "-<-"},
+    ["013"] = {x = 12, y = 08, pc = "weiche+belegung", au = "left", fb = 13, text = "-<-"},
+    ["015"] = {x = 12, y = 04, pc = "weiche+belegung", au = "left", fb = 14, text = "-<-"},
+    ["022"] = {x = 62, y = 10, pc = "weiche+belegung", au = "left", fb = 15, text = "->-"},
+}
+weichen = {
+	["W1/2"]   = {pc = "weiche+belegung", au = "right", fb = 0},
+	["W3/4"]   = {pc = "weiche+belegung", au = "right", fb = 1},
+	["W5/6"]   = {pc = "weiche+belegung", au = "right", fb = 2},
+	["W11/12"] = {pc = "weiche+belegung", au = "right", fb = 4},
+	["W13/14"] = {pc = "weiche+belegung", au = "right", fb = 5},
+	["W15/16"] = {pc = "weiche+belegung", au = "right", fb = 6},
+	["W21"]    = {pc = "weiche+belegung", au = "right", fb = 8},
+	["W22"]    = {pc = "weiche+belegung", au = "right", fb = 9},
+	["W23"]    = {pc = "weiche+belegung", au = "right", fb = 12},
+	["W24"]    = {pc = "weiche+belegung", au = "right", fb = 13},
+}
+fahrstrassenteile = {
+	["W22L/2"] = {x = 28, y = 02, text = "--"},
+    ["006"]    = {x = 34, y = 02, text = "--- 6 ---"},
+	["W23R"]   = {x = 47, y = 02, text = "----"},
+	["W23"]    = {x = 52, y = 02, text = "--"},
+	["026"]    = {x = 58, y = 02, text = "---"},
+    ["EH"]     = {x = 65, y = 02, text = "->>"},
+	
+	["W22L/1"] = {x = 26, y = 03, text = "/"},
+	["W23L/2"] = {x = 50, y = 03, text = "/"},
+	
+    ["BR"]     = {x = 05, y = 04, text = "<<-"},
+    ["015"]    = {x = 12, y = 04, text = "-<-"},
+	["W21"]    = {x = 18, y = 04, text = "----"},
+	["W21L"]   = {x = 23, y = 04, text = "--"},
+	["W22R"]   = {x = 26, y = 04, text = "----"},
+    ["005"]    = {x = 34, y = 04, text = "--- 5 ---"},
+	["W23L/1"] = {x = 47, y = 04, text = "--"},
+	
+	["W21R/1"] = {x = 23, y = 05, text = "\\"},
+	
+	["W21R/2"] = {x = 25, y = 06, text = "--"},
+	["W4"]     = {x = 28, y = 06, text = "--"},
+    ["004"]    = {x = 34, y = 06, text = "--- 4 ---"},
+	["W11R/1"] = {x = 47, y = 06, text = "--"},
+	
+	["W4L"]    = {x = 26, y = 07, text = "/"},
+	["W11R/2"] = {x = 50, y = 07, text = "\\"},
+	
+    ["SF"]     = {x = 05, y = 08, text = "<<-"},
+    ["013"]    = {x = 12, y = 08, text = "-<-"},
+	["W2R"]    = {x = 18, y = 08, text = "----"},
+	["W2"]     = {x = 23, y = 08, text = "--"},
+	["W3R"]    = {x = 26, y = 08, text = "----"},
+    ["003"]    = {x = 34, y = 08, text = "--- 3 ---"},
+	["W12L"]   = {x = 47, y = 08, text = "----"},
+	["W12"]    = {x = 52, y = 08, text = "--"},
+	["W15L"]   = {x = 55, y = 08, text = "----------"},
+    ["TLG"]    = {x = 69, y = 08, text = "->>"},
+	
+	["W1L"]    = {x = 21, y = 09, text = "/"},
+	["W15R"]   = {x = 55, y = 09, text = "\\"},
+	
+    ["SFG"]    = {x = 05, y = 10, text = "<<-"},
+    ["012"]    = {x = 12, y = 10, text = "-<-"},
+	["W1"]     = {x = 18, y = 10, text = "--"},
+	["W1R"]    = {x = 21, y = 10, text = "----"},
+	["W5L"]    = {x = 26, y = 10, text = "----"},
+    ["002"]    = {x = 34, y = 10, text = "--- 2 ---"},
+	["W14R"]   = {x = 47, y = 10, text = "----"},
+	["W16L"]   = {x = 52, y = 10, text = "----"},
+	["W16"]    = {x = 57, y = 10, text = "--"},
+    ["022"]    = {x = 62, y = 10, text = "->-"},
+    ["TL"]     = {x = 69, y = 10, text = "->>"},
+	
+	["W6R/1"]  = {x = 26, y = 11, text = "\\"},
+	["W13L/2"] = {x = 50, y = 11, text = "/"},
+	
+	["W6R/2"]  = {x = 28, y = 12, text = "--"},
+    ["001"]    = {x = 34, y = 12, text = "--- 1 ---"},
+	["W13L/1"] = {x = 47, y = 12, text = "--"},
+}
+fahrstrassen = {
+    ["A.N1"] = {
+        gleise = {
+            ["012"] = true,
+            ["001"] = true,
+        },
+        signale = {
+            ["A"] = SIGNAL_HP,
+            ["L012X"] = SIGNAL_SH,
+        },
+        fsTeile = {"012","W1","W1R","W6R","001"},
+		weichen = {"W5/6"},
+    },
+    ["A.N2"] = {
+        gleise = {
+            ["012"] = true,
+            ["002"] = true,
+        },
+        signale = {
+            ["A"] = SIGNAL_HP,
+            ["L012X"] = SIGNAL_SH,
+        },
+        fsTeile = {"012","W1","W1R","W5L","002"},
+		weichen = {},
+    },
+    ["A.N4"] = {
+        gleise = {
+            ["012"] = true,
+            ["004"] = true,
+        },
+        signale = {
+            ["A"] = SIGNAL_HP,
+            ["L012X"] = SIGNAL_SH,
+        },
+        fsTeile = {"012","W1","W1L","W2","W4L","W4","004"},
+		weichen = {"W1/2","W3/4"},
+    },
+    ["AA.N4"] = {
+        gleise = {
+            ["013"] = true,
+            ["004"] = true,
+        },
+        signale = {
+            ["AA"] = SIGNAL_HP,
+            ["L013X"] = SIGNAL_SH,
+        },
+        fsTeile = {"013","W2R","W2","W4L","W4","004"},
+		weichen = {"W3/4"},
+    },
+    ["B.N4"] = {
+        gleise = {
+            ["015"] = true,
+            ["004"] = true,
+        },
+        signale = {
+            ["B"] = SIGNAL_HP,
+            ["L015X"] = SIGNAL_SH,
+        },
+        fsTeile = {"015","W21","W21R","W4","004"},
+		weichen = {"W21"},
+    },
+    ["B.L005X"] = {
+        gleise = {
+            ["015"] = true,
+            ["005"] = true,
+        },
+        signale = {
+            ["B"] = SIGNAL_HP,
+            ["L015X"] = SIGNAL_SH,
+        },
+        fsTeile = {"015","W21","W21L","W22R","005"},
+		weichen = {},
+    },
+    ["B.L006X"] = {
+        gleise = {
+            ["015"] = true,
+            ["006"] = true,
+        },
+        signale = {
+            ["B"] = SIGNAL_HP,
+            ["L015X"] = SIGNAL_SH,
+        },
+        fsTeile = {"015","W21","W21L","W22L","006"},
+		weichen = {"W22"},
+    },
+	
+    ["F.P3"] = {
+        gleise = {["003"] = true},
+        signale = {["F"] = SIGNAL_HP},
+        fsTeile = {"W15L","W12","W12L","003"},
+		weichen = {},
+    },
+    ["F.P4"] = {
+        gleise = {["004"] = true},
+        signale = {["F"] = SIGNAL_HP},
+        fsTeile = {"W15L","W12","W11R","004"},
+		weichen = {"W11/12"},
+    },
+    ["FF.P1"] = {
+        gleise = {
+            ["001"] = true,
+            ["022"] = true,
+        },
+        signale = {
+            ["FF"] = SIGNAL_HP,
+            ["L022Y"] = SIGNAL_SH,
+        },
+        fsTeile = {"022","W16","W16L","W13L","001"},
+		weichen = {"W13/14"},
+    },
+    ["FF.P3"] = {
+        gleise = {
+            ["003"] = true,
+            ["022"] = true,
+        },
+        signale = {
+            ["FF"] = SIGNAL_HP,
+            ["L022Y"] = SIGNAL_SH,
+        },
+        fsTeile = {"022","W16","W15R","W12","W12L","003"},
+		weichen = {"W15/16"},
+    },
+    ["FF.P4"] = {
+        gleise = {
+            ["004"] = true,
+            ["022"] = true,
+        },
+        signale = {
+            ["FF"] = SIGNAL_HP,
+            ["L022Y"] = SIGNAL_SH,
+        },
+        fsTeile = {"022","W16","W15R","W12","W11R","004"},
+		weichen = {"W15/16","W11/12"},
+    },
+    ["G.P5"] = {
+        gleise = {["005"] = true},
+        signale = {["G"] = SIGNAL_HP},
+        fsTeile = {"026","W23","W23L","005"},
+		weichen = {"W23"},
+    },
+    ["G.P6"] = {
+        gleise = {["006"] = true},
+        signale = {["G"] = SIGNAL_HP},
+        fsTeile = {"026","W23","W23R","006"},
+		weichen = {},
+	},
+	
+    ["N1.TL"] = {
+        gleise = {["022"] = true},
+        signale = {["N1"] = SIGNAL_HP},
+        fsTeile = {"022","W16","W16L","W13L"},
+		weichen = {"W13/14"},
+	},
+    ["N2.TL"] = {
+        gleise = {["022"] = true},
+        signale = {["N2"] = SIGNAL_HP},
+        fsTeile = {"022","W16","W16L","W14R"},
+		weichen = {},
+	},
+    ["N4.TL"] = {
+        gleise = {["022"] = true},
+        signale = {["N4"] = SIGNAL_HP},
+        fsTeile = {"022","W16","W15R","W12","W11R"},
+		weichen = {"W11/12","W15/16"},
+	},
+    ["N4.TLG"] = {
+        signale = {["N4"] = SIGNAL_HP},
+        fsTeile = {"W15L","W12","W11R"},
+		weichen = {"W11/12"},
+	},
+    ["L005X.EH"] = {
+        signale = {
+            ["L005X"] = SIGNAL_SH,
+            ["N5-6"] = SIGNAL_HP,
+        },
+        fsTeile = {"026","W23","W23L"},
+		weichen = {"W23"},
+	},
+    ["L006X.EH"] = {
+        signale = {
+            ["L006X"] = SIGNAL_SH,
+            ["N5-6"] = SIGNAL_HP,
+        },
+        fsTeile = {"026","W23","W23R"},
+		weichen = {},
+	},
+	
+    ["P1.SFG"] = {
+        gleise = {["012"] = true},
+        signale = {["P1"] = SIGNAL_HP},
+        fsTeile = {"012","W1","W1R","W6R"},
+		weichen = {"W5/6"},
+	},
+    ["P3.SFG"] = {
+        gleise = {["012"] = true},
+        signale = {["P3"] = SIGNAL_HP},
+        fsTeile = {"012","W1","W1L","W2","W3R"},
+		weichen = {"W1/2"},
+	},
+    ["P4.SFG"] = {
+        gleise = {["012"] = true},
+        signale = {["P4"] = SIGNAL_HP},
+        fsTeile = {"012","W1","W1L","W2","W4L","W4"},
+		weichen = {"W1/2","W3/4"},
+	},
+    ["P3.SF"] = {
+        gleise = {["013"] = true},
+        signale = {["P3"] = SIGNAL_HP},
+        fsTeile = {"013","W2R","W2","W3R"},
+		weichen = {},
+	},
+    ["P4.SF"] = {
+        gleise = {["013"] = true},
+        signale = {["P4"] = SIGNAL_HP},
+        fsTeile = {"013","W2R","W2","W4L","W4"},
+		weichen = {"W3/4"},
+	},
+    ["P4.BR"] = {
+        gleise = {["015"] = true},
+        signale = {["P4"] = SIGNAL_HP},
+        fsTeile = {"015","W21","W21R","W4"},
+		weichen = {"W21"},
+	},
+    ["P5.BR"] = {
+        gleise = {["015"] = true},
+        signale = {["P5"] = SIGNAL_HP},
+        fsTeile = {"015","W21","W21L","W22R"},
+		weichen = {},
+	},
+    ["P6.BR"] = {
+        gleise = {["015"] = true},
+        signale = {["P6"] = SIGNAL_HP},
+        fsTeile = {"015","W21","W21L","W22L"},
+		weichen = {"W22"},
+    },
+	
+	-- Rangierstrassen
+    ["L012X-N1"] = {
+		rangieren = true,
+        signale = {["L012X"] = SIGNAL_SH},
+        fsTeile = {"W1","W1R","W6R","001"},
+		weichen = {"W5/6"},
+    },
+    ["L012X-N2"] = {
+		rangieren = true,
+        signale = {["L012X"] = SIGNAL_SH},
+        fsTeile = {"W1","W1R","W5L","002"},
+		weichen = {},
+    },
+    ["L012X-L003X"] = {
+		rangieren = true,
+        signale = {["L012X"] = SIGNAL_SH},
+        fsTeile = {"W1","W1L","W2","W3R","003"},
+		weichen = {"W1/2"},
+    },
+    ["L012X-N4"] = {
+		rangieren = true,
+        signale = {["L012X"] = SIGNAL_SH},
+        fsTeile = {"W1","W1L","W2","W4L","W4","004"},
+		weichen = {"W1/2","W3/4"},
+    },
+    ["L013X-L003X"] = {
+		rangieren = true,
+        signale = {["L013X"] = SIGNAL_SH},
+        fsTeile = {"W2R","W2","W3R","003"},
+		weichen = {},
+    },
+    ["L013X-N4"] = {
+		rangieren = true,
+        signale = {["L013X"] = SIGNAL_SH},
+        fsTeile = {"W2R","W2","W4L","W4","004"},
+		weichen = {"W3/4"},
+    },
+    ["L015X-N4"] = {
+		rangieren = true,
+        signale = {["L015X"] = SIGNAL_SH},
+        fsTeile = {"W21","W21R","W4","004"},
+		weichen = {"W21"},
+    },
+    ["L015X-L005X"] = {
+		rangieren = true,
+        signale = {["L015X"] = SIGNAL_SH},
+        fsTeile = {"W21","W21L","W22R","005"},
+		weichen = {},
+    },
+    ["L015X-L006X"] = {
+		rangieren = true,
+        signale = {["L015X"] = SIGNAL_SH},
+        fsTeile = {"W21","W21L","W22L","006"},
+		weichen = {"W22"},
+    },
+	
+	["L022Y-P1"] = {
+		rangieren = true,
+        signale = {["L022Y"] = SIGNAL_SH},
+        fsTeile = {"W16","W16L","W13L","001"},
+		weichen = {"W13/14"},
+    },
+	["L022Y-L002Y"] = {
+		rangieren = true,
+        signale = {["L022Y"] = SIGNAL_SH},
+        fsTeile = {"W16","W16L","W14R","002"},
+		weichen = {},
+    },
+    ["L022Y-P3"] = {
+		rangieren = true,
+        signale = {["L022Y"] = SIGNAL_SH},
+        fsTeile = {"W16","W15R","W12","W12L","003"},
+		weichen = {"W15/16"},
+    },
+    ["L022Y-P4"] = {
+		rangieren = true,
+        signale = {["L022Y"] = SIGNAL_SH},
+        fsTeile = {"W16","W15R","W12","W11R","004"},
+		weichen = {"W15/16","W11/12"},
+    },
+	
+    ["N1-022"] = {
+		rangieren = true,
+        signale = {["N1"] = SIGNAL_SH},
+        fsTeile = {"022","W16","W16L","W13L"},
+		weichen = {"W13/14"},
+	},
+    ["N2-022"] = {
+		rangieren = true,
+        signale = {["N2"] = SIGNAL_SH},
+        fsTeile = {"022","W16","W16L","W14R"},
+		weichen = {},
+	},
+    ["L003X-022"] = {
+		rangieren = true,
+        signale = {["L003X"] = SIGNAL_SH},
+        fsTeile = {"022","W16","W15R","W12","W12L"},
+		weichen = {"W15/16"},
+	},
+    ["N4-022"] = {
+		rangieren = true,
+        signale = {["N4"] = SIGNAL_SH},
+        fsTeile = {"022","W16","W15R","W12","W11R"},
+		weichen = {"W11/12","W15/16"},
+	},
+	
+    ["P1-012"] = {
+		rangieren = true,
+        signale = {["P1"] = SIGNAL_SH},
+        fsTeile = {"012","W1","W1R","W6R"},
+		weichen = {"W5/6"},
+	},
+    ["L002Y-012"] = {
+		rangieren = true,
+        signale = {["L002Y"] = SIGNAL_SH},
+        fsTeile = {"012","W1","W1R","W5L"},
+		weichen = {},
+	},
+    ["P3-012"] = {
+		rangieren = true,
+        signale = {["P3"] = SIGNAL_SH},
+        fsTeile = {"012","W1","W1L","W2","W3R"},
+		weichen = {"W1/2"},
+	},
+    ["P4-012"] = {
+		rangieren = true,
+        signale = {["P4"] = SIGNAL_SH},
+        fsTeile = {"012","W1","W1L","W2","W4L","W4"},
+		weichen = {"W1/2","W3/4"},
+	},
+    ["P3-013"] = {
+		rangieren = true,
+        signale = {["P3"] = SIGNAL_SH},
+        fsTeile = {"013","W2R","W2","W3R"},
+		weichen = {},
+	},
+    ["P4-013"] = {
+		rangieren = true,
+        signale = {["P4"] = SIGNAL_SH},
+        fsTeile = {"013","W2R","W2","W4L","W4"},
+		weichen = {"W3/4"},
+	},
+    ["P4-015"] = {
+		rangieren = true,
+        signale = {["P4"] = SIGNAL_SH},
+        fsTeile = {"015","W21","W21R","W4"},
+		weichen = {"W21"},
+	},
+    ["P5-015"] = {
+		rangieren = true,
+        signale = {["P5"] = SIGNAL_SH},
+        fsTeile = {"015","W21","W21L","W22R"},
+		weichen = {},
+	},
+    ["P6-015"] = {
+		rangieren = true,
+        signale = {["P6"] = SIGNAL_SH},
+        fsTeile = {"015","W21","W21L","W22L"},
+		weichen = {"W22"},
+	},
+}
 
-print("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
+gleisbildDatei = "gleisbild.txt"
+stellwerkName = "Montabau"
+bildschirm = "right"
+modem = "top"
 
--- Stellbild
-local function zeichneSignal(signal, gross)
-    local farbeOben = colors.red
-    local farbeUnten = colors.red
-    
-    if signal.status == SIGNAL_HP then
-        farbeOben = colors.lime
-        farbeUnten = colors.lime
-    elseif signal.status == SIGNAL_SH then
-        farbeOben = colors.yellow
-        farbeUnten = colors.yellow
-    elseif signal.status == SIGNAL_ERS then
-        farbeUnten = colors.yellow
-    end
-
-    if signal.richtung == "r" then
-        if gross then
-            bildschirm.zeichneElement(signal, farbeUnten, "|")
-            bildschirm.zeichneElement(signal, farbeOben, ">", 1)
-        else
-            bildschirm.zeichneElement(signal, farbeOben, ">")
-        end
-    else
-        bildschirm.zeichneElement(signal, farbeOben, "<")
-        if gross then
-            bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
-        end
-    end
-end
-local function zeichneGleis(gleis, farbe)
-    if gleis.status == 1 then
-        farbe = colors.red
-    end
-    
-    if gleis.text then
-        bildschirm.zeichneElement(gleis, farbe, gleis.text)
-    else
-        for j, abschnitt in ipairs(gleis.abschnitte) do
-            bildschirm.zeichne(abschnitt.x, abschnitt.y, farbe, abschnitt.text)
-        end
-    end
-end
-local function zeichneFSTeile(fahrstr, farbe)
-    if fahrstr.status and fahrstr.status > 0 then
-        for i, item in ipairs(fahrstr.fsTeile) do
-            local fsTeil
-            if fahrstrassenteile[item] then
-                fsTeil = fahrstrassenteile[item]
-                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
-            end
-            if fahrstrassenteile[item.."/1"] then
-                fsTeil = fahrstrassenteile[item.."/1"]
-                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
-            end
-            if fahrstrassenteile[item.."/2"] then
-                fsTeil = fahrstrassenteile[item.."/2"]
-                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
-            end
-            if fahrstrassenteile[item.."/3"] then
-                fsTeil = fahrstrassenteile[item.."/3"]
-                bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
-            end
-        end
-    end
-end
-local function zeichneBahnuebergang(name, bue)
-    local farbe = colors.yellow
-    if bue.status == 1 then
-        farbe = colors.lime
-    end
-    
-    bildschirm.zeichne(bue.x, bue.y, farbe, name)
-    for i = 1, bue.hoehe do
-        bildschirm.zeichne(bue.x, bue.y + i, farbe, "| |")
-    end
-end
-
-local function neuzeichnen()
-    -- Hintergrundbild
-    bildschirm.leeren()
-    local hoehe = bildschirm.hoehe()
-    
-    for i, item in pairs(gleisbild) do
-        if type(item) == "string" then
-            bildschirm.zeichne(1, i, colors.white, item)
-        else
-            local offset = 1
-            for j, teil in ipairs(item) do
-                bildschirm.zeichne(offset, i, colors.white, teil)
-                offset = offset + string.len(teil)
-            end
-        end
-    end
-    
-    -- zeichen Fahrstrassenteile
-    if debug then
-        for i, fsTeil in pairs(fahrstrassenteile) do
-            bildschirm.zeichneElement(fsTeil, colors.orange, fsTeil.text)
-        end
-    end
-    
-    -- zeichne Signale
-    for i, signal in pairs(signale) do
-        if signal.hp ~= nil or signal.stelle_hp ~= nil then
-            zeichneSignal(signal, true)
-        else
-            zeichneSignal(signal, false)
-        end
-    end
-    
-    -- zeichne Gleise
-    for i, gleis in pairs(gleise) do
-        zeichneGleis(gleis, colors.yellow)
-    end
-    
-    -- zeichne Fahrstrassen
-    for i, fahrstr in pairs(fahrstrassen) do
-        local fsFarbe = colors.lime
-        if fahrstr.rangieren then
-            fsFarbe = colors.blue
-        end
-        zeichneFSTeile(fahrstr, fsFarbe)
-    end
-    
-    -- zeichne Bahnuebergaenge
-    for name, bue in pairs(bahnuebergaenge) do
-        zeichneBahnuebergang(name, bue)
-    end
-    
-    -- Textzeilen
-    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT   ERS   RST")
-    
-    bildschirm.zeichne(1, hoehe-2, colors.white, "EIN:")
-    if eingabe then
-        bildschirm.zeichne(6, hoehe-2, colors.white, eingabeModus.." "..eingabe)
-    end
-    
-    bildschirm.zeichne(1, hoehe-1, colors.white, "VQ:")
-    if nachricht then
-        bildschirm.zeichne(6, hoehe-1, colors.white, nachricht)
-    end
-end
-
--- Callback
-local function fehler(text)
-    nachricht = text
-    print(text)
-end
-local function erfolg(mitNachricht, text)
-    if mitNachricht then
-        nachricht = text
-    end
-    if debug then
-        print(text)
-    end
-end
-
-local function stelleWeiche(name, abzweigend, mitNachricht)
-    local weiche = weichen[name]
-    if weiche == nil then
-        return fehler("stelleWeiche: Weiche "..name.." nicht projektiert")
-    end
-    
-    kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
-    
-    local lage = "gerade"
-    if abzweigend then
-        lage = "abzweigend"
-    end
-    
-    erfolg(mitNachricht, "Weiche " .. name .. " umgestellt auf " .. lage)
-end
-local function aktiviereSignalbild(signal, signalbild, aktiv)
-    local cnf = signal["stelle_"..signalbild]
-    if cnf ~= nil then
-        kommunikation.sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
-    end
-end
-local function stelleSignal(name, signalbild, mitNachricht)
-    local signal = signale[name]
-    if signal == nil then
-        return fehler("Signal "..name.." nicht projektiert")
-    end
-    
-    if signal[signalbild] ~= nil then
-        kommunikation.sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
-    elseif signalbild == SIGNAL_HALT then
-        aktiviereSignalbild(signal, SIGNAL_HP, false)
-        aktiviereSignalbild(signal, SIGNAL_SH, false)
-        aktiviereSignalbild(signal, SIGNAL_ERS, false)
-        signale[name].status = signalbild
-    else
-        signale[name].status = signalbild
-        aktiviereSignalbild(signal, signalbild, true)
-    end
-    
-    erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
-end
-
-local function kollidierendeFahrstrasse(fahrstr)
-    for i, fsTeil in ipairs(fahrstr.fsTeile) do
-        for fName, andereFs in pairs(fahrstrassen) do
-            if andereFs.status ~= nil and andereFs.status > 0 then
-                for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
-                    if fsTeil == anderesFsTeil then
-                        return fName
-                    end
-                end
-            end
-        end
-    end
-    return nil
-end
-local function stelleFahrstrasse(name, mitNachricht, istReset)
-    local rueckmeldung = ""
-    local fahrstr = fahrstrassen[name]
-    if fahrstr == nil then
-        return fehler("Fahrstrasse "..name.." nicht projektiert")
-    end
-    
-    if fahrstr.steller ~= nil then
-        kommunikation.sendRedstoneImpulse(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb, debug)
-    elseif fahrstr.signale ~= nil then
-        -- Kollisionserkennung
-        local kollision = kollidierendeFahrstrasse(fahrstr)
-        if kollision ~= nil then
-            return fehler("FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision)
-        end
-        
-        fahrstrassen[name].status = 1
-        
-        if fahrstr.weichen ~= nil then
-            for i, weiche in pairs(fahrstr.weichen) do
-                stelleWeiche(weiche, true)
-            end
-        end
-        
-        fahrstrassen[name].status = 2
-        
-        -- Gleisbelegung prüfen
-        
-        if not istReset and speichereFahrstrassen then
-            fahrstrassenDatei.speichereFahrstrasse(name)
-        end
-        
-        fahrstrassen[name].status = 3
-        
-        for signal, signalbild in pairs(fahrstr.signale) do
-            stelleSignal(signal, signalbild)
-        end
-        
-    else
-        return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
-    end
-    
-    erfolg(mitNachricht, "Fahrstrasse " .. name .. " eingestellt")
-end
-local function loeseFSauf(name, mitNachricht)
-    local rueckmeldung = ""
-    local fahrstr = fahrstrassen[name]
-    if fahrstr == nil then
-        return fehler("Fahrstrasse "..name.." nicht projektiert")
-    end
-    
-    if fahrstr.aufloeser ~= nil then
-        kommunikation.sendRedstoneImpulse(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb, debug)
-    elseif fahrstr.signale ~= nil then
-        for signal, signalbild in pairs(fahrstr.signale) do
-            stelleSignal(signal, SIGNAL_HALT)
-        end
-        
-        fahrstrassen[name].status = 4
-        
-        if speichereFahrstrassen then
-            fahrstrassenDatei.loescheFahrstrasse(name)
-        end
-        
-        if fahrstr.weichen ~= nil then
-            for i, weiche in pairs(fahrstr.weichen) do
-                stelleWeiche(weiche, false)
-            end
-        end
-        
-        fahrstrassen[name].status = 0
-    else
-       return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
-    end
-    
-    erfolg(mitNachricht, "Fahrstrasse " .. name .. " aufgeloest")
-end
-
--- setzt alle Ausgänge zurück
-local function reset(auchFS)
-    for name, signal in pairs(signale) do
-        stelleSignal(name, SIGNAL_HALT)
-    end
-    
-    for name, weiche in pairs(weichen) do
-        stelleWeiche(name, false)
-    end
-    
-    if auchFS then
-        for name, weiche in pairs(fahrstrassen) do
-        loeseFSauf(name, false)
-    end
-    elseif speichereFahrstrassen then
-        local alteFahrstrassen = fahrstrassenDatei.leseFahrstrassen()
-        for i, fahrstrasse in ipairs(alteFahrstrassen) do
-            stelleFahrstrasse(fahrstrasse, false, true)
-        end
-    end
-    
-    nachricht = ""
-end
-
-local function puefeElement(x, y, eName, element, groesse)
-    if (x >= element.x and x <= element.x + groesse) and y == element.y then
-        if eingabe == "" then
-            if eingabeModus == "HALT" then
-                stelleSignal(eName, SIGNAL_HALT, true)
-            elseif eingabeModus == "ERS" then
-                stelleSignal(eName, SIGNAL_ERS, true)
-            else
-                eingabe = eName
-                return true
-            end
-        else
-            local fsName
-            if fahrstrassen[eingabe .. "." .. eName] then
-                fsName = eingabe .. "." .. eName
-                if eingabeModus == "" then
-                    stelleFahrstrasse(fsName, true)
-                elseif eingabeModus == "AUFL" then
-                    loeseFSauf(fsName, true)
-                end
-            elseif fahrstrassen[eingabe .. "-" .. eName] then
-                fsName = eingabe .. "-" .. eName
-                if eingabeModus == "" then
-                    stelleFahrstrasse(fsName, true)
-                elseif eingabeModus == "AUFL" then
-                    loeseFSauf(fsName, true)
-                end
-            else
-                fehler("Keine Fahrstrasse von " .. eingabe .. " nach " .. eName .. " gefunden")
-            end
-        end
-        eingabe = ""
-        eingabeModus = ""
-        return true
-    end
-    return false
-end
-
-local function behandleKlick(x, y)
-    nachricht = ""
-    
-    for name, signal in pairs(signale) do
-        if puefeElement(x, y, name, signal, 1) then
-            break
-        end
-    end
-    for name, ziel in pairs(fsZiele) do
-        if puefeElement(x, y, name, ziel, ziel.laenge) then
-            break
-        end
-    end
-    if debug then
-        for name, fsTeil in pairs(fahrstrassenteile) do
-            local x1 = fsTeil.x
-            local x2 = x1 + string.len(fsTeil.text)
-            if x >= x1 and x < x2 and y == fsTeil.y then
-                eingabe = eingabe .. " fst." .. name
-                break
-            end
-        end
-    end
-    
-    local hoehe = bildschirm.hoehe()
-    
-    -- Loeschen
-    if (x >= 0 and x <= 3) and y == (hoehe-3) then
-        eingabe = ""
-        nachricht = ""
-        eingabeModus = ""
-    end
-    
-    -- Aktionen
-    if (x >= 8 and x <= 11) and y == (hoehe-3) then
-        eingabeModus = "AUFL"
-    elseif (x >= 15 and x <= 18) and y == (hoehe-3) then
-        if eingabe ~= "" then
-            stelleSignal(eingabe, SIGNAL_HALT, true)
-            eingabe = ""
-            eingabeModus = ""
-        else
-            eingabeModus = "HALT"
-        end
-    elseif (x >= 22 and x <= 23) and y == (hoehe-3) then
-        if eingabe == nil or eingabe == "" then
-            eingabeModus = "ERS"
-        elseif signale[eingabe] ~= nil then
-            stelleSignal(eingabe, SIGNAL_ERS, true)
-            eingabe = ""
-            eingabeModus = ""
-        else
-            eingabe = ""
-            eingabeModus = ""
-            nachricht = eingabe.." ist kein Signal"
-        end
-    elseif (x >= 27 and x <= 30) and y == (hoehe-3) then
-        eingabe = ""
-        eingabeModus = ""
-        reset(true)
-    end
-    
-    if debug then
-        print("EIN: " .. eingabe)
-        print("VQ: " .. nachricht)
-    end
-end
-
-kommunikation.init(protocol, config.modem, serverName)
-
--- Kommunikation
-local function onRedstoneChange(pc, side, color, state)
-    -- Signale
-    for sName, signal in pairs(signale) do
-        if signal.hp ~= nil and tostring(signal.hp.pc) == pc and tostring(2 ^ signal.hp.fb) == color and tostring(signal.hp.au) == side then
-            if debug then
-                print("Signalstatus "..sName)
-            end
-            if state == "ON" then
-                signal.status = SIGNAL_HP
-            else
-                signal.status = SIGNAL_HALT
-            end
-        elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
-            if debug then
-                print("Signalstatus "..sName)
-            end
-            if state == "ON" then
-                signal.status = SIGNAL_SH
-            else
-                signal.status = SIGNAL_HALT
-            end
-        end
-    end
-    
-    -- Gleise
-    for gName, gleis in pairs(gleise) do
-        if tostring(gleis.pc) == pc and tostring(gleis.au) == side
-                and tostring(2 ^ gleis.fb) == color then
-            if debug then
-                print("Gleisstatus "..gName)
-            end
-            if state == "ON" then
-                gleis.status = 1
-            else
-                gleis.status = 0
-            end
-        end
-    end
-    
-    -- Fahrstrassen
-    for fName, fahrstrasse in pairs(fahrstrassen) do
-        if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
-                and tostring(2 ^ fahrstrasse.melder.fb) == color then
-            if debug then
-                print("Fahrstrassenstatus "..fName.." "..state)
-            end
-            if state == "ON" then
-                fahrstrasse.status = 3
-            else
-                fahrstrasse.status = 0
-            end
-        end
-    end
-end
-
-nachricht = "Verbinde..."
-neuzeichnen()
-
--- warte 5 Sekunden, damit die Clients starten können.
-kommunikation.setzteTimer(5, reset)
-
-events.listen(
-    nil,
-    nil,
-    nil,
-    function(eventData)
-        if kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug) then
-            neuzeichnen()
-        end
-    end,
-    function(eventData)
-        behandleKlick(eventData.x, eventData.y)
-        neuzeichnen()
-    end,
-    function(eventData)
-        if kommunikation.behandleTimer(eventData.id) then
-            neuzeichnen()
-        end
-    end
-)
-
-kommunikation.deinit()
+speichereFahrstrassen = true

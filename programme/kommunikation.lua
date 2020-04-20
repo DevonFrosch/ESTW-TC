@@ -1,11 +1,19 @@
 local local_protocol = nil
-local local_serverName = nil
 local local_modem = nil
+local local_role = nil
+local ownName = nil
+
+local SERVER = "Server"
 
 local laufendeTimer = {}
 local clientIds = {}
 local clientNames = {}
 
+local serverId = nil
+
+local version = 2
+
+-- Hilfsfunktionen
 splitString = function(inputstr)
     if inputstr == nil then
         return nil
@@ -38,9 +46,9 @@ behandleTimer = function(id)
     return true
 end
 
-rednetMessageReceived = function(id, packet, onchange, debug)
+local function getMessage(packet, id, debug)
     if debug then
-        print("Nachricht von "..id..": "..(packet or ""))
+        print("Nachricht id="..id.." packet="..tools.dump(packet))
     end
     
     local message = ""
@@ -49,19 +57,29 @@ rednetMessageReceived = function(id, packet, onchange, debug)
     elseif type(packet) == "string" then
         message = splitString(packet)
     else
-        print("Falscher Typ: packet="..type(packet))
-        return false
+        print("Falscher Typ: id="..id..", packet="..type(packet))
+        return nil
     end
     
     if message == nil then
-        print("Nachricht ist nil")
+        return nil
+    end
+    
+    return message
+end
+
+-- Server-Funktionen
+rednetMessageReceivedServer = function(id, packet, onchange, debug)
+    local message = getMessage(packet, id, true)
+    
+    if message == nil then
         return false
     end
     
     local command = message[1]
     
     -- HELLO IAM <clientName>
-    if #message == 3 and command == "HELLO" and message[3] ~= local_serverName then
+    if #message == 3 and command == "HELLO" and message[3] ~= ownName then
         clientIds[message[3]] = id
         clientNames[id] = message[3]
         if debug then
@@ -85,15 +103,15 @@ rednetMessageReceived = function(id, packet, onchange, debug)
     
     return true
 end
-sendRestoneMessage = function(clientName, side, colorIndex, bit, debug)
+sendRestoneMessageServer = function(clientName, side, colorIndex, bit, debug)
     local index = 2 ^ colorIndex
     clientName = tostring(clientName)
     if clientIds[clientName] == nil then
-        print("Kein Client fuer " .. (clientName or "nil") .. " verbunden")
+        print("sendRestoneMessageServer: Kein Client fuer " .. (clientName or "nil") .. " verbunden")
         return
     end
 
-    local message = "REDSTONE " .. local_serverName .. " " .. side
+    local message = "REDSTONE " .. ownName .. " " .. side
     
     message = message .. " " .. index
     
@@ -104,11 +122,11 @@ sendRestoneMessage = function(clientName, side, colorIndex, bit, debug)
     end
     
     if debug then
-        print("SEND "..message)
+        print("SENDTO "..clientName..": "..message)
     end
     rednet.send(clientIds[clientName], message, local_protocol)
 end
-sendRedstoneImpulse = function(clientName, side, colorIndex, debug)
+sendRedstoneImpulseServer = function(clientName, side, colorIndex, debug)
     sendRestoneMessage(clientName, side, colorIndex, true, debug)
     local resetRedstone = function(clientName, side, colorIndex)
         sendRestoneMessage(clientName, side, colorIndex, false, debug)
@@ -116,30 +134,97 @@ sendRedstoneImpulse = function(clientName, side, colorIndex, debug)
     setzteTimer(0.2, resetRedstone, clientName, side, colorIndex)
 end
 
-
-init = function(protocol, modem, serverName)
-    if debug then
-        print("Protokoll: "..protocol)
+-- Client-Funktionen
+sendRedstoneChangeClient = function(side, index, bit)
+    local message = "REDSTONE " .. local_role .. " " .. side
+    
+    message = message .. " " .. index
+    
+    if bit > 0 then
+        message = message .. " ON"
+    else
+        message = message .. " OFF"
     end
     
-    local_protocol = protocol
-    local_serverName = serverName
-    local_modem = modem
-    
-    rednet.open(local_modem)
-    rednet.host(local_protocol, local_serverName)
-    
-    foundClients = {rednet.lookup(local_protocol)}
-    if type(foundClients) == "table" then
-        for i, foundClient in ipairs(foundClients) do
-            if debug then
-                print("Frage Client "..foundClient)
-            end
-            rednet.send(foundClient, "HELLO IAM "..local_serverName, local_protocol)
+    if serverId ~= nil then
+        if debug then
+            print("SEND: "..message)
         end
+        rednet.send(serverId, message, local_protocol)
     end
 end
+rednetMessageReceivedClient = function(id, packet, onRegister, onChange, debug)
+    local message = getMessage(packet, id, debug)
+    
+    if message == nil then
+        return false
+    end
+    
+    local command = message[1]
+    
+    -- HELLO IAM Server
+    if #message == 3 and command == "HELLO" and message[3] == SERVER then
+        serverId = id
+        print("Neuer Server: id="..serverId)
+        local msg = "HELLO IAM " .. local_role
+        rednet.send(serverId, msg, local_protocol)
+        onRegister()
+    end
+    
+    -- REDSTONE <side> <ON|OFF>
+    if #message == 5 and command == "REDSTONE" then
+        local side, color, state = message[3], tonumber(message[4]), message[5]
+        onChange(side, color, state)
+    end
+end
+
+init = function(protocol, modem, role, debug)
+    local_protocol = protocol .. " v" .. version
+    local_modem = modem
+    local_role = role
+    
+    if debug then
+        print("Verbinde: local_protocol="..local_protocol)
+    end
+    
+    rednet.open(local_modem)
+    
+    if role == nil then
+        ownName = SERVER
+        rednet.host(local_protocol, ownName)
+        
+        foundClients = {rednet.lookup(local_protocol)}
+        if type(foundClients) == "table" then
+            for i, foundClient in ipairs(foundClients) do
+                if debug then
+                    print("Frage Client "..foundClient)
+                end
+                rednet.send(foundClient, "HELLO IAM "..ownName, local_protocol)
+            end
+        end
+    else
+        ownName = "Client "..role
+        if debug then
+            print("Registriere "..ownName.." auf "..local_protocol)
+        end
+        rednet.host(local_protocol, ownName)
+
+        serverId = rednet.lookup(local_protocol, SERVER)
+        if serverId then
+            print("Server gefunden id=" .. serverId)
+            rednet.send(serverId, "HELLO IAM " .. role, local_protocol)
+        else
+            print("Kein Server gefunden, Client "..role)
+            return false
+        end
+    end
+    return true
+end
 deinit = function()
-    rednet.unhost(local_protocol, local_serverName)
+    rednet.unhost(local_protocol, ownName)
     rednet.close(local_modem)
+end
+
+getProtocol = function()
+    return local_protocol
 end

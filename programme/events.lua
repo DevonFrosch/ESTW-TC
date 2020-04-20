@@ -1,7 +1,5 @@
 local eventData = {}
 
-local local_rednetProtocol = nil
-
 local function listenForCharPressed()
     local event, character = os.pullEvent("char")
     eventData = {
@@ -10,17 +8,12 @@ local function listenForCharPressed()
     }
 end
 local function listenForRednetReceive()
-    while true do
-        local id, msg, proto = rednet.receive()
-        if local_rednetProtocol == nil or proto == local_rednetProtocol then
-            eventData = {
-                id = id,
-                msg = msg,
-                protocol = proto
-            }
-            return
-        end
-    end
+    local id, msg, proto = rednet.receive()
+    eventData = {
+        id = id,
+        msg = msg,
+        protocol = proto
+    }
 end
 local function listenForMonitorTouch()
     local event, side, x, y = os.pullEvent("monitor_touch")
@@ -37,29 +30,41 @@ local function listenForTimerEvent()
         id = id,
     }
 end
+local function listenForRedstoneChange()
+    local event = os.pullEvent("redstone")
+    eventData = {
+        event = event,
+    }
+end
 
-listen = function(beforeHook, afterHook, onCharEvent, onRednetReceive, onMonitorTouch, onTimerEvent, rednetProtocol)
-    local_rednetProtocol = rednetProtocol
-    
+listen = function(handlers)
     repeat
-        local eventNumber = parallel.waitForAny(listenForCharPressed, listenForRednetReceive, listenForMonitorTouch, listenForTimerEvent)
+        local eventNumber = parallel.waitForAny(
+            listenForCharPressed,
+            listenForRednetReceive,
+            listenForMonitorTouch,
+            listenForTimerEvent,
+            listenForRedstoneChange
+        )
         
-        if type(beforeHook) == "function" then
-            beforeHook()
+        if type(handlers.beforeHook) == "function" then
+            handlers.beforeHook()
         end
         
-        if eventNumber == 1 and type(onCharEvent) == "function" then
-            onCharEvent(eventData)
-        elseif eventNumber == 2 and type(onRednetReceive) == "function" then
-            onRednetReceive(eventData)
-        elseif eventNumber == 3 and type(onMonitorTouch) == "function" then
-            onMonitorTouch(eventData)
-        elseif eventNumber == 4 and type(onTimerEvent) == "function" then
-            onTimerEvent(eventData)
+        if eventNumber == 1 and type(handlers.onCharEvent) == "function" then
+            handlers.onCharEvent(eventData)
+        elseif eventNumber == 2 and type(handlers.onRednetReceive) == "function" then
+            handlers.onRednetReceive(eventData)
+        elseif eventNumber == 3 and type(handlers.onMonitorTouch) == "function" then
+            handlers.onMonitorTouch(eventData)
+        elseif eventNumber == 4 and type(handlers.onTimerEvent) == "function" then
+            handlers.onTimerEvent(eventData)
+        elseif eventNumber == 5 and type(handlers.onRedstoneChange) == "function" then
+            handlers.onRedstoneChange(eventData)
         end
         
-        if type(afterHook) == "function" then
-            afterHook()
+        if type(handlers.afterHook) == "function" then
+            handlers.afterHook()
         end
     until eventNumber == 1 and eventData.char == "x"
 end

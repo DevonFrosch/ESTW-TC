@@ -46,13 +46,14 @@ local weichen = config.weichen
 local fahrstrassenteile = config.fahrstrassenteile
 -- Status: 0 = Nichts, 1 = Wird eingestellt, 2 = Festgelegt, 3 = Signalfreigabe, 4 = Wird aufgelöst
 local fahrstrassen = config.fahrstrassen
+local speichereFahrstrassen = config.speichereFahrstrassen or false
 
 local eingabe = ""
 local eingabeModus = ""
 local nachricht = ""
+local position = ""
 
-local protocolVersion = "STW v1"
-local protocol = protocolVersion .. " " .. config.stellwerkName
+local protocol = "ESTW " .. config.stellwerkName
 local serverName = "Server"
 
 local SIGNAL_HALT = "halt"
@@ -219,6 +220,9 @@ local function neuzeichnen()
     if nachricht then
         bildschirm.zeichne(6, hoehe-1, colors.white, nachricht)
     end
+    if position then
+        bildschirm.zeichne(1, 1, colors.white, position)
+    end
 end
 
 -- Callback
@@ -241,7 +245,7 @@ local function stelleWeiche(name, abzweigend, mitNachricht)
         return fehler("stelleWeiche: Weiche "..name.." nicht projektiert")
     end
     
-    kommunikation.sendRestoneMessage(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
+    kommunikation.sendRestoneMessageServer(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
     
     local lage = "gerade"
     if abzweigend then
@@ -253,7 +257,7 @@ end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
     local cnf = signal["stelle_"..signalbild]
     if cnf ~= nil then
-        kommunikation.sendRestoneMessage(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
+        kommunikation.sendRestoneMessageServer(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
     end
 end
 local function stelleSignal(name, signalbild, mitNachricht)
@@ -263,7 +267,7 @@ local function stelleSignal(name, signalbild, mitNachricht)
     end
     
     if signal[signalbild] ~= nil then
-        kommunikation.sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
+        kommunikation.sendRedstoneImpulseServer(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
     elseif signalbild == SIGNAL_HALT then
         aktiviereSignalbild(signal, SIGNAL_HP, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
@@ -299,7 +303,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
     end
     
     if fahrstr.steller ~= nil then
-        kommunikation.sendRedstoneImpulse(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb, debug)
+        kommunikation.sendRedstoneImpulseServer(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb, debug)
     elseif fahrstr.signale ~= nil then
         -- Kollisionserkennung
         local kollision = kollidierendeFahrstrasse(fahrstr)
@@ -319,7 +323,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         
         -- Gleisbelegung prüfen
         
-        if not istReset then
+        if not istReset and speichereFahrstrassen then
             fahrstrassenDatei.speichereFahrstrasse(name)
         end
         
@@ -343,7 +347,7 @@ local function loeseFSauf(name, mitNachricht)
     end
     
     if fahrstr.aufloeser ~= nil then
-        kommunikation.sendRedstoneImpulse(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb, debug)
+        kommunikation.sendRedstoneImpulseServer(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb, debug)
     elseif fahrstr.signale ~= nil then
         for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, SIGNAL_HALT)
@@ -351,7 +355,9 @@ local function loeseFSauf(name, mitNachricht)
         
         fahrstrassen[name].status = 4
         
-        fahrstrassenDatei.loescheFahrstrasse(name)
+        if speichereFahrstrassen then
+            fahrstrassenDatei.loescheFahrstrasse(name)
+        end
         
         if fahrstr.weichen ~= nil then
             for i, weiche in pairs(fahrstr.weichen) do
@@ -381,7 +387,7 @@ local function reset(auchFS)
         for name, weiche in pairs(fahrstrassen) do
         loeseFSauf(name, false)
     end
-    else
+    elseif speichereFahrstrassen then
         local alteFahrstrassen = fahrstrassenDatei.leseFahrstrassen()
         for i, fahrstrasse in ipairs(alteFahrstrassen) do
             stelleFahrstrasse(fahrstrasse, false, true)
@@ -391,8 +397,11 @@ local function reset(auchFS)
     nachricht = ""
 end
 
-local function puefeElement(x, y, eName, element, groesse)
-    if (x >= element.x and x <= element.x + groesse) and y == element.y then
+local function puefeElement(x, y, eName, element, groesse, toleranz)
+    if toleranz == nil then
+        toleranz = 0
+    end
+    if (x >= element.x - toleranz and x <= element.x + groesse + toleranz) and y == element.y then
         if eingabe == "" then
             if eingabeModus == "HALT" then
                 stelleSignal(eName, SIGNAL_HALT, true)
@@ -433,7 +442,7 @@ local function behandleKlick(x, y)
     nachricht = ""
     
     for name, signal in pairs(signale) do
-        if puefeElement(x, y, name, signal, 1) then
+        if puefeElement(x, y, name, signal, 1, 1) then
             break
         end
     end
@@ -456,16 +465,16 @@ local function behandleKlick(x, y)
     local hoehe = bildschirm.hoehe()
     
     -- Loeschen
-    if (x >= 0 and x <= 3) and y == (hoehe-3) then
+    if (x >= 1 and x <= 4) and y == (hoehe-3) then
         eingabe = ""
         nachricht = ""
         eingabeModus = ""
     end
     
     -- Aktionen
-    if (x >= 8 and x <= 11) and y == (hoehe-3) then
+    if (x >= 7 and x <= 12) and y == (hoehe-3) then
         eingabeModus = "AUFL"
-    elseif (x >= 15 and x <= 18) and y == (hoehe-3) then
+    elseif (x >= 14 and x <= 19) and y == (hoehe-3) then
         if eingabe ~= "" then
             stelleSignal(eingabe, SIGNAL_HALT, true)
             eingabe = ""
@@ -473,7 +482,7 @@ local function behandleKlick(x, y)
         else
             eingabeModus = "HALT"
         end
-    elseif (x >= 22 and x <= 23) and y == (hoehe-3) then
+    elseif (x >= 21 and x <= 25) and y == (hoehe-3) then
         if eingabe == nil or eingabe == "" then
             eingabeModus = "ERS"
         elseif signale[eingabe] ~= nil then
@@ -485,7 +494,7 @@ local function behandleKlick(x, y)
             eingabeModus = ""
             nachricht = eingabe.." ist kein Signal"
         end
-    elseif (x >= 27 and x <= 30) and y == (hoehe-3) then
+    elseif (x >= 27 and x <= 31) and y == (hoehe-3) then
         eingabe = ""
         eingabeModus = ""
         reset(true)
@@ -494,10 +503,9 @@ local function behandleKlick(x, y)
     if debug then
         print("EIN: " .. eingabe)
         print("VQ: " .. nachricht)
+        position = x.."x"..y
     end
 end
-
-kommunikation.init(protocol, config.modem, serverName)
 
 -- Kommunikation
 local function onRedstoneChange(pc, side, color, state)
@@ -555,30 +563,29 @@ local function onRedstoneChange(pc, side, color, state)
     end
 end
 
+kommunikation.init(protocol, config.modem, nil, nil, debug)
+
 nachricht = "Verbinde..."
 neuzeichnen()
 
 -- warte 5 Sekunden, damit die Clients starten können.
-kommunikation.setzteTimer(5, reset)
+-- kommunikation.setzteTimer(5, reset)
 
-events.listen(
-    nil,
-    nil,
-    nil,
-    function(eventData)
-        if kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug) then
+events.listen({
+    onRednetReceive = function(eventData)
+        if kommunikation.rednetMessageReceivedServer(eventData.id, eventData.msg, onRedstoneChange, debug) then
             neuzeichnen()
         end
     end,
-    function(eventData)
+    onMonitorTouch = function(eventData)
         behandleKlick(eventData.x, eventData.y)
         neuzeichnen()
     end,
-    function(eventData)
+    onTimerEvent = function(eventData)
         if kommunikation.behandleTimer(eventData.id) then
             neuzeichnen()
         end
-    end
-)
+    end,
+})
 
 kommunikation.deinit()
