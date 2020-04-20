@@ -57,6 +57,12 @@ zeichne = function(x, y, farbe, text)
     monitor.write(text)
 end
 
-zeichneElement = function(position, farbe, text)
-    zeichne(position.x, position.y, farbe, text)
+zeichneElement = function(position, farbe, text, offsetX, offsetY)
+    if offsetX == nil then
+        offsetX = 0
+    end
+    if offsetY == nil then
+        offsetY = 0
+    end
+    zeichne(position.x + offsetX, position.y + offsetY, farbe, text)
 end

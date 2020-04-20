@@ -1,10 +1,10 @@
-os.loadAPI("tools")
+os.loadAPI("bin/tools")
 
 local debug = false
-local kommunikation = tools.loadAPI("kommunikation.lua")
-local bildschirm = tools.loadAPI("bildschirm.lua")
-local events = tools.loadAPI("events.lua")
-local stellwerkDatei = tools.loadAPI("stellwerk.datei.lua")
+local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
+local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
+local events = tools.loadAPI("events.lua", "bin")
+local fahrstrassenDatei = tools.loadAPI("fahrstrassenDatei.lua", "bin")
 
 -- load configuration
 local config = tools.loadAPI("config.lua")
@@ -79,20 +79,33 @@ fileHandle.close()
 print("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
 
 -- Stellbild
-local function zeichneSignal(signal, symbolL, symbolR)
-    local symbol = symbolL
-    if signal.richtung == "r" then
-        symbol = symbolR
-    end
+local function zeichneSignal(signal, gross)
+    local farbeOben = colors.red
+    local farbeUnten = colors.red
     
-    local farbe = colors.red
     if signal.status == SIGNAL_HP then
-        farbe = colors.lime
+        farbeOben = colors.lime
+        farbeUnten = colors.lime
     elseif signal.status == SIGNAL_SH then
-        farbe = colors.yellow
+        farbeOben = colors.yellow
+        farbeUnten = colors.yellow
+    elseif signal.status == SIGNAL_ERS then
+        farbeUnten = colors.yellow
     end
-    
-    bildschirm.zeichneElement(signal, farbe, symbol)
+
+    if signal.richtung == "r" then
+        if gross then
+            bildschirm.zeichneElement(signal, farbeUnten, "|")
+            bildschirm.zeichneElement(signal, farbeOben, ">", 1)
+        else
+            bildschirm.zeichneElement(signal, farbeOben, ">")
+        end
+    else
+        bildschirm.zeichneElement(signal, farbeOben, "<")
+        if gross then
+            bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
+        end
+    end
 end
 local function zeichneGleis(gleis, farbe)
     if gleis.status == 1 then
@@ -169,9 +182,9 @@ local function neuzeichnen()
     -- zeichne Signale
     for i, signal in pairs(signale) do
         if signal.hp ~= nil or signal.stelle_hp ~= nil then
-            zeichneSignal(signal, "<|", "|>")
+            zeichneSignal(signal, true)
         else
-            zeichneSignal(signal, "<", ">")
+            zeichneSignal(signal, false)
         end
     end
     
@@ -195,7 +208,7 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT")
+    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT   ERS")
     
     bildschirm.zeichne(1, hoehe-2, colors.white, "EIN:")
     if eingabe then
@@ -248,8 +261,6 @@ local function stelleSignal(name, signalbild, mitNachricht)
     if signal == nil then
         return fehler("Signal "..name.." nicht projektiert")
     end
-    
-    kommunikation.sendRedstoneImpulse("signale", "top", 1, debug)
     
     if signal[signalbild] ~= nil then
         kommunikation.sendRedstoneImpulse(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
@@ -309,7 +320,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         -- Gleisbelegung prüfen
         
         if not istReset then
-            stellwerkDatei.speichereFahrstrasse(name)
+            fahrstrassenDatei.speichereFahrstrasse(name)
         end
         
         fahrstrassen[name].status = 3
@@ -340,7 +351,7 @@ local function loeseFSauf(name, mitNachricht)
         
         fahrstrassen[name].status = 4
         
-        stellwerkDatei.loescheFahrstrasse(name)
+        fahrstrassenDatei.loescheFahrstrasse(name)
         
         if fahrstr.weichen ~= nil then
             for i, weiche in pairs(fahrstr.weichen) do
@@ -361,6 +372,8 @@ local function puefeElement(x, y, eName, element, groesse)
         if eingabe == "" then
             if eingabeModus == "HALT" then
                 stelleSignal(eName, SIGNAL_HALT, true)
+            elseif eingabeModus == "ERS" then
+                stelleSignal(eName, SIGNAL_ERS, true)
             else
                 eingabe = eName
                 return true
@@ -426,14 +439,25 @@ local function behandleKlick(x, y)
     -- Aktionen
     if (x >= 8 and x <= 11) and y == (hoehe-3) then
         eingabeModus = "AUFL"
-    end
-    if (x >= 15 and x <= 18) and y == (hoehe-3) then
+    elseif (x >= 15 and x <= 18) and y == (hoehe-3) then
         if eingabe ~= "" then
             stelleSignal(eingabe, SIGNAL_HALT, true)
             eingabe = ""
             eingabeModus = ""
         else
             eingabeModus = "HALT"
+        end
+    elseif (x >= 22 and x <= 24) and y == (hoehe-3) then
+        if eingabe == nil or eingabe == "" then
+            eingabeModus = "ERS"
+        elseif signale[eingabe] ~= nil then
+            stelleSignal(eingabe, SIGNAL_ERS, true)
+            eingabe = ""
+            eingabeModus = ""
+        else
+            eingabe = ""
+            eingabeModus = ""
+            nachricht = eingabe.." ist kein Signal"
         end
     end
     
@@ -453,10 +477,12 @@ local function reset()
         stelleWeiche(name, false)
     end
     
-    local fahrstrassen = stellwerkDatei.leseFahrstrassen()
+    local fahrstrassen = fahrstrassenDatei.leseFahrstrassen()
     for i, fahrstrasse in ipairs(fahrstrassen) do
         stelleFahrstrasse(fahrstrasse, false, true)
     end
+    
+    nachricht = ""
 end
 
 kommunikation.init(protocol, config.modem, serverName)
@@ -517,24 +543,29 @@ local function onRedstoneChange(pc, side, color, state)
     end
 end
 
+nachricht = "Verbinde..."
 neuzeichnen()
 
-kommunikation.setzteTimer(1, reset)
+-- warte 5 Sekunden, damit die Clients starten können.
+kommunikation.setzteTimer(5, reset)
 
 events.listen(
     nil,
-    function()
-        neuzeichnen()
-    end,
+    nil,
     nil,
     function(eventData)
-        kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug)
+        if kommunikation.rednetMessageReceived(eventData.id, eventData.msg, onRedstoneChange, debug) then
+            neuzeichnen()
+        end
     end,
     function(eventData)
         behandleKlick(eventData.x, eventData.y)
+        neuzeichnen()
     end,
     function(eventData)
-        kommunikation.behandleTimer(eventData.id)
+        if kommunikation.behandleTimer(eventData.id) then
+            neuzeichnen()
+        end
     end
 )
 

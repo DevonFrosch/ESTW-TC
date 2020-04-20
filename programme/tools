@@ -11,15 +11,21 @@ dump = function(o)
    end
 end
 
-loadAPI = function(fileName)
+loadAPI = function(fileName, path)
     if fileName == nil then
         print("Bibliotheksname ist nil -> ungueltig")
     end
-    if not fs.exists(fileName) then
-        print("Bibliothek "..fileName.." nicht gefunden")
+    
+    local filePath = fileName
+    if path ~= nil then
+        filePath = path .. "/" .. filePath
+    end
+    
+    if not fs.exists(filePath) then
+        print("Bibliothek "..filePath.." nicht gefunden")
         return
     end
     
-    os.loadAPI(fileName)
+    os.loadAPI(filePath)
     return _G[fileName]
 end

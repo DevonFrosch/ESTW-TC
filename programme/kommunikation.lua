@@ -7,6 +7,9 @@ local clientIds = {}
 local clientNames = {}
 
 splitString = function(inputstr)
+    if inputstr == nil then
+        return nil
+    end
     local tbl = {}
     local i = 1
     local matches = inputstr:gmatch("([^ ]+)")
@@ -26,12 +29,13 @@ end
 behandleTimer = function(id)
     local timerData = laufendeTimer[id]
     if timerData == nil then
-        return
+        return false
     end
     if timerData.callback == nil or timerData.params == nil then
-        return
+        return false
     end
     timerData.callback(unpack(timerData.params))
+    return true
 end
 
 rednetMessageReceived = function(id, packet, onchange, debug)
@@ -46,6 +50,12 @@ rednetMessageReceived = function(id, packet, onchange, debug)
         message = splitString(packet)
     else
         print("Falscher Typ: packet="..type(packet))
+        return false
+    end
+    
+    if message == nil then
+        print("Nachricht ist nil")
+        return false
     end
     
     local command = message[1]
@@ -66,12 +76,14 @@ rednetMessageReceived = function(id, packet, onchange, debug)
         local pc = clientNames[id]
         if pc == nil then
             print("PC nicht registriert: id="..id)
-            return
+            return false
         end
         pc = tostring(pc)
         
         onchange(pc, side, color, state)
     end
+    
+    return true
 end
 sendRestoneMessage = function(clientName, side, colorIndex, bit, debug)
     local index = 2 ^ colorIndex
