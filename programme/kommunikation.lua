@@ -91,6 +91,12 @@ rednetMessageReceivedServer = function(id, packet, onchange, debug)
     if #message == 5 and command == "REDSTONE" then
         local side, color, state = message[3], message[4], message[5]
         
+        if tonumber(message[4]) == nil then
+            print("Farbe ist keine Zahl: "..(message[4] or "nil"))
+            return false
+        end
+        local colorIndex = math.sqrt(color)
+        
         local pc = clientNames[id]
         if pc == nil then
             print("PC nicht registriert: id="..id)
@@ -98,7 +104,7 @@ rednetMessageReceivedServer = function(id, packet, onchange, debug)
         end
         pc = tostring(pc)
         
-        onchange(pc, side, color, state)
+        onchange(pc, side, colorIndex, state)
     end
     
     return true

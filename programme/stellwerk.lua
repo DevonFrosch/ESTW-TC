@@ -39,6 +39,7 @@ end
 -- Status: 0 = Halt, 1 = Fahrt, 2 = Rangierfahrt
 local signale = config.signale
 local fsZiele = config.fsZiele
+local fsAufloeser = config.fsAufloeser
 local bahnuebergaenge = config.bahnuebergaenge
 -- Status: 0 = Frei, 1 = Besetzt
 local gleise = config.gleise
@@ -54,7 +55,6 @@ local nachricht = ""
 local position = ""
 
 local protocol = "ESTW " .. config.stellwerkName
-local serverName = "Server"
 
 local SIGNAL_HALT = "halt"
 local SIGNAL_HP = "hp"
@@ -109,10 +109,6 @@ local function zeichneSignal(signal, gross)
     end
 end
 local function zeichneGleis(gleis, farbe)
-    if gleis.status == 1 then
-        farbe = colors.red
-    end
-    
     if gleis.text then
         bildschirm.zeichneElement(gleis, farbe, gleis.text)
     else
@@ -203,6 +199,13 @@ local function neuzeichnen()
         zeichneFSTeile(fahrstr, fsFarbe)
     end
     
+    -- zeichne besetzte Gleise
+    for i, gleis in pairs(gleise) do
+        if gleis.status == 1 then
+            zeichneGleis(gleis, colors.red)
+        end
+    end
+    
     -- zeichne Bahnuebergaenge
     for name, bue in pairs(bahnuebergaenge) do
         zeichneBahnuebergang(name, bue)
@@ -279,6 +282,32 @@ local function stelleSignal(name, signalbild, mitNachricht)
     end
     
     erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
+end
+local function signalHaltfall(gleisName)
+    for sName, signal in pairs(signale) do
+        if signal.haltAbschnitte ~= nil then
+            for haName, haltAbschnitt in ipairs(signal.haltAbschnitte) do
+                if gleisName == haltAbschnitt then
+                    stelleSignal(sName, SIGNAL_HALT)
+                end
+            end
+        end
+    end
+    for fName, fahrstrasse in pairs(fahrstrassen) do
+        if fName == "P1-012" then print("-Halt1 "..tools.dump(fahrstrasse.haltAbschnitte)) end
+        if fahrstrasse.haltAbschnitte ~= nil then
+            for i, haltAbschnitt in ipairs(fahrstrasse.haltAbschnitte) do
+                if fName == "P1-012" then print("-Halt2 "..tools.dump(gleisName).." und "..tools.dump(haltAbschnitt)) end
+                if gleisName == haltAbschnitt then
+                    print("-Haltfall FS: "..gleisName.." "..fName)
+                    print(tools.dump(fahrstrasse.signale))
+                    for sName, bild in pairs(fahrstrasse.signale) do
+                        stelleSignal(sName, SIGNAL_HALT)
+                    end
+                end
+            end
+        end
+    end
 end
 
 local function kollidierendeFahrstrasse(fahrstr)
@@ -511,7 +540,7 @@ end
 local function onRedstoneChange(pc, side, color, state)
     -- Signale
     for sName, signal in pairs(signale) do
-        if signal.hp ~= nil and tostring(signal.hp.pc) == pc and tostring(2 ^ signal.hp.fb) == color and tostring(signal.hp.au) == side then
+        if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
             if debug then
                 print("Signalstatus "..sName)
             end
@@ -520,7 +549,7 @@ local function onRedstoneChange(pc, side, color, state)
             else
                 signal.status = SIGNAL_HALT
             end
-        elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and tostring(2 ^ signal.sh.fb) == color and tostring(signal.sh.au) == side then
+        elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
             if debug then
                 print("Signalstatus "..sName)
             end
@@ -535,14 +564,18 @@ local function onRedstoneChange(pc, side, color, state)
     -- Gleise
     for gName, gleis in pairs(gleise) do
         if tostring(gleis.pc) == pc and tostring(gleis.au) == side
-                and tostring(2 ^ gleis.fb) == color then
-            if debug then
-                print("Gleisstatus "..gName)
-            end
+                and gleis.fb == color then
             if state == "ON" then
-                gleis.status = 1
+                if gleis.status ~= 1 then
+                    gleis.status = 1
+                    print("-Gleis "..gName.." belegt")
+                    signalHaltfall(gName)
+                end
             else
-                gleis.status = 0
+                if gleis.status ~= 0 then
+                    gleis.status = 0
+                    print("-Gleis "..gName.." frei")
+                end
             end
         end
     end
@@ -550,7 +583,7 @@ local function onRedstoneChange(pc, side, color, state)
     -- Fahrstrassen
     for fName, fahrstrasse in pairs(fahrstrassen) do
         if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
-                and tostring(2 ^ fahrstrasse.melder.fb) == color then
+                and fahrstrasse.melder.fb == color then
             if debug then
                 print("Fahrstrassenstatus "..fName.." "..state)
             end
@@ -558,6 +591,17 @@ local function onRedstoneChange(pc, side, color, state)
                 fahrstrasse.status = 3
             else
                 fahrstrasse.status = 0
+            end
+        end
+    end
+    
+    -- Auflösung
+    for aName, abschn in pairs(fsAufloeser) do
+        if abschn.pc == tostring(pc) and tostring(abschn.au) == side and abschn.fb == color and state == "ON" then
+            for fName, fahrstrasse in pairs(fahrstrassen) do
+                if fahrstrasse.status ~= nil and fahrstrasse.status > 0 and fahrstrasse.aufloeseAbschn == aName then
+                    loeseFSauf(fName)
+                end
             end
         end
     end
