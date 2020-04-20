@@ -418,12 +418,14 @@ local function behandleKlick(x, y)
             break
         end
     end
-    for name, fsTeil in pairs(fahrstrassenteile) do
-        local x1 = fsTeil.x
-        local x2 = x1 + string.len(fsTeil.text)
-        if x >= x1 and x < x2 and y == fsTeil.y then
-            eingabe = eingabe .. " " .. name
-            break
+    if debug then
+        for name, fsTeil in pairs(fahrstrassenteile) do
+            local x1 = fsTeil.x
+            local x2 = x1 + string.len(fsTeil.text)
+            if x >= x1 and x < x2 and y == fsTeil.y then
+                eingabe = eingabe .. " fst." .. name
+                break
+            end
         end
     end
     
