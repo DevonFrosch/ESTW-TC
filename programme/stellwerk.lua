@@ -208,7 +208,7 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT   ERS")
+    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT   ERS   RST")
     
     bildschirm.zeichne(1, hoehe-2, colors.white, "EIN:")
     if eingabe then
@@ -367,6 +367,30 @@ local function loeseFSauf(name, mitNachricht)
     erfolg(mitNachricht, "Fahrstrasse " .. name .. " aufgeloest")
 end
 
+-- setzt alle Ausgänge zurück
+local function reset(auchFS)
+    for name, signal in pairs(signale) do
+        stelleSignal(name, SIGNAL_HALT)
+    end
+    
+    for name, weiche in pairs(weichen) do
+        stelleWeiche(name, false)
+    end
+    
+    if auchFS then
+        for name, weiche in pairs(fahrstrassen) do
+        loeseFSauf(name, false)
+    end
+    else
+        local alteFahrstrassen = fahrstrassenDatei.leseFahrstrassen()
+        for i, fahrstrasse in ipairs(alteFahrstrassen) do
+            stelleFahrstrasse(fahrstrasse, false, true)
+        end
+    end
+    
+    nachricht = ""
+end
+
 local function puefeElement(x, y, eName, element, groesse)
     if (x >= element.x and x <= element.x + groesse) and y == element.y then
         if eingabe == "" then
@@ -449,7 +473,7 @@ local function behandleKlick(x, y)
         else
             eingabeModus = "HALT"
         end
-    elseif (x >= 22 and x <= 24) and y == (hoehe-3) then
+    elseif (x >= 22 and x <= 23) and y == (hoehe-3) then
         if eingabe == nil or eingabe == "" then
             eingabeModus = "ERS"
         elseif signale[eingabe] ~= nil then
@@ -461,30 +485,16 @@ local function behandleKlick(x, y)
             eingabeModus = ""
             nachricht = eingabe.." ist kein Signal"
         end
+    elseif (x >= 27 and x <= 30) and y == (hoehe-3) then
+        eingabe = ""
+        eingabeModus = ""
+        reset(true)
     end
     
     if debug then
         print("EIN: " .. eingabe)
         print("VQ: " .. nachricht)
     end
-end
-
--- setzt alle Ausgänge zurück
-local function reset()
-    for name, signal in pairs(signale) do
-        stelleSignal(name, SIGNAL_HALT)
-    end
-    
-    for name, weiche in pairs(weichen) do
-        stelleWeiche(name, false)
-    end
-    
-    local fahrstrassen = fahrstrassenDatei.leseFahrstrassen()
-    for i, fahrstrasse in ipairs(fahrstrassen) do
-        stelleFahrstrasse(fahrstrasse, false, true)
-    end
-    
-    nachricht = ""
 end
 
 kommunikation.init(protocol, config.modem, serverName)
