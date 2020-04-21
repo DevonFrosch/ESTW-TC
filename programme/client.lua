@@ -1,6 +1,8 @@
 os.loadAPI("bin/tools")
 
-local debug = false
+local log = tools.loadAPI("log.lua", "bin")
+log.start("client", "log", log.LEVEL_DEBUG)
+
 local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
 local events = tools.loadAPI("events.lua", "bin")
 
@@ -23,7 +25,7 @@ local configTests = {
 
 for name, test in pairs(configTests) do
     if not test then
-        print("Config fuer "..name.." falsch formatiert")
+        log.error("Config fuer "..name.." falsch formatiert")
         return
     end
 end
@@ -40,10 +42,8 @@ redstoneHasChanged = function()
                 local index = (2 ^ i)
                 local oldBit = bit.band(index, oldState)
                 local newBit = bit.band(index, newState)
-                if debug then
-                    print("index="..index..",oldBit="..oldBit..",newBit="..newBit)
-                end
                 if newBit ~= oldBit then
+                    log.debug("Redstone geaendert: ", {side = side, index = index, newBit = newBit})
                     kommunikation.sendRedstoneChangeClient(side, index, newBit)
                 end
             end
@@ -59,7 +59,7 @@ end
 
 function onChange(side, color, state)
     if not config.sides[side] then
-        print("onChange: Seite "..side.." nicht verbunden")
+        log.warn("onChange: Seite "..side.." nicht verbunden")
         return
     end
     if state == "ON" then
@@ -73,7 +73,7 @@ end
 
 local protocol = "ESTW " .. config.stellwerkName
 
-local serverGefunden = kommunikation.init(protocol, config.modem, tostring(config.role), debug)
+local serverGefunden = kommunikation.init(protocol, config.modem, tostring(config.role), log)
 
 if serverGefunden then
     redstoneHasChanged()
@@ -81,10 +81,19 @@ end
 
 events.listen({
     onRednetReceive = function(eventData)
-        kommunikation.rednetMessageReceivedClient(eventData.id, eventData.msg, onRegister, onChange, debug)
+        kommunikation.rednetMessageReceivedClient(eventData.id, eventData.msg, onRegister, onChange, log)
     end,
     onRedstoneChange = function(eventData)
         redstoneHasChanged()
+    end,
+    onCharEvent = function(eventData)
+        if eventData.char == "i" then
+            log.info("Status:")
+            log.info("  Role: "..config.role)
+            log.info("  Server: "..kommunikation.getServerId())
+            log.info("  RedstoneState: "..(#redstoneStates).." Einträge", redstoneStates)
+            log.info("----")
+        end
     end,
 })
 

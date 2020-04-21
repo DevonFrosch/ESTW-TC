@@ -1,19 +1,29 @@
 dump = function(o)
-   if type(o) == 'table' then
-      local s = '{ '
-      for k,v in pairs(o) do
-         if type(k) ~= 'number' then k = '"'..k..'"' end
-         s = s .. '['..k..'] = ' .. dump(v) .. ','
-      end
-      return s .. '} '
-   else
-      return tostring(o)
-   end
+    if type(o) ~= 'table' then
+        return tostring(o)
+    end
+    
+    local s = '{'
+    for k,v in pairs(o) do
+        if type(k) ~= 'number' then
+            k = '"'..k..'"'
+        end
+        s = s .. '['..k..']=' .. dump(v) .. ','
+    end
+    -- letztes Komma entfernen
+    if s:len() >= 1 then
+        s = s:sub(0, s:len() - 1)
+    end
+    return s .. '}'
 end
 
 loadAPI = function(fileName, path)
     if fileName == nil then
         print("Bibliotheksname ist nil -> ungueltig")
+    end
+    
+    if _G[fileName] then
+        return _G[fileName]
     end
     
     local filePath = fileName

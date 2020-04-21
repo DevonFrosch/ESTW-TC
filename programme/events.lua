@@ -19,6 +19,7 @@ local function listenForMonitorTouch()
     local event, side, x, y = os.pullEvent("monitor_touch")
     eventData = {
         event = event,
+        size = size,
         x = x,
         y = y,
     }
