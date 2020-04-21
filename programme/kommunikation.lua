@@ -117,7 +117,7 @@ sendRestoneMessageServer = function(clientName, side, colorIndex, bit)
     local index = 2 ^ colorIndex
     clientName = tostring(clientName)
     if clientIds[clientName] == nil then
-        log.warn("sendRestoneMessageServer: Kein Client fuer " .. (clientName or "nil") .. " verbunden")
+        log.warn("sendRestoneMessageServer: Kein Client fuer " .. (clientName or "nil") .. " verbunden", clientIds)
         return
     end
 

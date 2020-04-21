@@ -1,6 +1,13 @@
 os.loadAPI("bin/tools")
 
+local log = tools.loadAPI("log.lua", "bin")
 local debug = false
+local logLevel = log.LEVEL_INFO
+if debug then
+    logLevel = log.LEVEL_DEBUG
+end
+log.start("server", "log", logLevel)
+
 local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
 local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
 local events = tools.loadAPI("events.lua", "bin")
@@ -25,14 +32,14 @@ local configContents = {
 
 for name, typ in pairs(configContents) do
     if type(config[name]) ~= typ then
-        print("Config: kein "..name)
+        log.error("Config: kein "..name)
         return
     end
 end
 
 -- load text
 if not fs.exists(config.gleisbildDatei) then
-    print("Datei " .. config.gleisbildDatei .. " nicht gefunden")
+    log.error("Datei " .. config.gleisbildDatei .. " nicht gefunden")
     return
 end
 
@@ -77,7 +84,7 @@ end
 
 fileHandle.close()
 
-print("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
+log.info("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
 
 -- Stellbild
 local function zeichneSignal(signal, gross)
@@ -231,15 +238,13 @@ end
 -- Callback
 local function fehler(text)
     nachricht = text
-    print(text)
+    log.error(text)
 end
 local function erfolg(mitNachricht, text)
     if mitNachricht then
         nachricht = text
     end
-    if debug then
-        print(text)
-    end
+    log.debug(text)
 end
 
 local function stelleWeiche(name, abzweigend, mitNachricht)
@@ -248,7 +253,7 @@ local function stelleWeiche(name, abzweigend, mitNachricht)
         return fehler("stelleWeiche: Weiche "..name.." nicht projektiert")
     end
     
-    kommunikation.sendRestoneMessageServer(weiche.pc, weiche.au, weiche.fb, abzweigend, debug)
+    kommunikation.sendRestoneMessageServer(weiche.pc, weiche.au, weiche.fb, abzweigend)
     
     local lage = "gerade"
     if abzweigend then
@@ -260,7 +265,7 @@ end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
     local cnf = signal["stelle_"..signalbild]
     if cnf ~= nil then
-        kommunikation.sendRestoneMessageServer(cnf.pc, cnf.au, cnf.fb, aktiv, debug)
+        kommunikation.sendRestoneMessageServer(cnf.pc, cnf.au, cnf.fb, aktiv)
     end
 end
 local function stelleSignal(name, signalbild, mitNachricht)
@@ -270,7 +275,7 @@ local function stelleSignal(name, signalbild, mitNachricht)
     end
     
     if signal[signalbild] ~= nil then
-        kommunikation.sendRedstoneImpulseServer(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb, debug)
+        kommunikation.sendRedstoneImpulseServer(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb)
     elseif signalbild == SIGNAL_HALT then
         aktiviereSignalbild(signal, SIGNAL_HP, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
@@ -294,13 +299,9 @@ local function signalHaltfall(gleisName)
         end
     end
     for fName, fahrstrasse in pairs(fahrstrassen) do
-        if fName == "P1-012" then print("-Halt1 "..tools.dump(fahrstrasse.haltAbschnitte)) end
         if fahrstrasse.haltAbschnitte ~= nil then
             for i, haltAbschnitt in ipairs(fahrstrasse.haltAbschnitte) do
-                if fName == "P1-012" then print("-Halt2 "..tools.dump(gleisName).." und "..tools.dump(haltAbschnitt)) end
                 if gleisName == haltAbschnitt then
-                    print("-Haltfall FS: "..gleisName.." "..fName)
-                    print(tools.dump(fahrstrasse.signale))
                     for sName, bild in pairs(fahrstrasse.signale) do
                         stelleSignal(sName, SIGNAL_HALT)
                     end
@@ -332,7 +333,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
     end
     
     if fahrstr.steller ~= nil then
-        kommunikation.sendRedstoneImpulseServer(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb, debug)
+        kommunikation.sendRedstoneImpulseServer(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb)
     elseif fahrstr.signale ~= nil then
         -- Kollisionserkennung
         local kollision = kollidierendeFahrstrasse(fahrstr)
@@ -376,7 +377,7 @@ local function loeseFSauf(name, mitNachricht)
     end
     
     if fahrstr.aufloeser ~= nil then
-        kommunikation.sendRedstoneImpulseServer(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb, debug)
+        kommunikation.sendRedstoneImpulseServer(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb)
     elseif fahrstr.signale ~= nil then
         for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, SIGNAL_HALT)
@@ -529,9 +530,9 @@ local function behandleKlick(x, y)
         reset(true)
     end
     
+    log.debug("EIN: " .. eingabe)
+    log.debug("VQ: " .. nachricht)
     if debug then
-        print("EIN: " .. eingabe)
-        print("VQ: " .. nachricht)
         position = x.."x"..y
     end
 end
@@ -541,18 +542,14 @@ local function onRedstoneChange(pc, side, color, state)
     -- Signale
     for sName, signal in pairs(signale) do
         if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
-            if debug then
-                print("Signalstatus "..sName)
-            end
+            log.debug("Signalstatus "..sName)
             if state == "ON" then
                 signal.status = SIGNAL_HP
             else
                 signal.status = SIGNAL_HALT
             end
         elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
-            if debug then
-                print("Signalstatus "..sName)
-            end
+            log.debug("Signalstatus "..sName)
             if state == "ON" then
                 signal.status = SIGNAL_SH
             else
@@ -568,13 +565,11 @@ local function onRedstoneChange(pc, side, color, state)
             if state == "ON" then
                 if gleis.status ~= 1 then
                     gleis.status = 1
-                    print("-Gleis "..gName.." belegt")
                     signalHaltfall(gName)
                 end
             else
                 if gleis.status ~= 0 then
                     gleis.status = 0
-                    print("-Gleis "..gName.." frei")
                 end
             end
         end
@@ -584,9 +579,7 @@ local function onRedstoneChange(pc, side, color, state)
     for fName, fahrstrasse in pairs(fahrstrassen) do
         if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
                 and fahrstrasse.melder.fb == color then
-            if debug then
-                print("Fahrstrassenstatus "..fName.." "..state)
-            end
+            log.debug("Fahrstrassenstatus "..fName.." "..state)
             if state == "ON" then
                 fahrstrasse.status = 3
             else
@@ -607,7 +600,7 @@ local function onRedstoneChange(pc, side, color, state)
     end
 end
 
-kommunikation.init(protocol, config.modem, nil, nil, debug)
+kommunikation.init(protocol, config.modem, nil, nil, log)
 
 nachricht = "Verbinde..."
 neuzeichnen()
@@ -617,7 +610,7 @@ kommunikation.setzteTimer(5, reset)
 
 events.listen({
     onRednetReceive = function(eventData)
-        if kommunikation.rednetMessageReceivedServer(eventData.id, eventData.msg, onRedstoneChange, debug) then
+        if kommunikation.rednetMessageReceivedServer(eventData.id, eventData.msg, onRedstoneChange) then
             neuzeichnen()
         end
     end,
