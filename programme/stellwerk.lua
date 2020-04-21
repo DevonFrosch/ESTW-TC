@@ -215,16 +215,16 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    bildschirm.zeichne(1, hoehe-3, colors.white, "LOE    AUFL   HALT   ERS   RST")
+    bildschirm.zeichne(1, hoehe-2, colors.white, "LOE    AUFL   HALT   ERS   RST")
     
-    bildschirm.zeichne(1, hoehe-2, colors.white, "EIN:")
+    bildschirm.zeichne(1, hoehe-1, colors.white, "EIN:")
     if eingabe then
-        bildschirm.zeichne(6, hoehe-2, colors.white, eingabeModus.." "..eingabe)
+        bildschirm.zeichne(6, hoehe-1, colors.white, eingabeModus.." "..eingabe)
     end
     
-    bildschirm.zeichne(1, hoehe-1, colors.white, "VQ:")
+    bildschirm.zeichne(1, hoehe, colors.white, "VQ:")
     if nachricht then
-        bildschirm.zeichne(6, hoehe-1, colors.white, nachricht)
+        bildschirm.zeichne(6, hoehe, colors.white, nachricht)
     end
     if position then
         bildschirm.zeichne(1, 1, colors.white, position)
@@ -492,16 +492,16 @@ local function behandleKlick(x, y)
     local hoehe = bildschirm.hoehe()
     
     -- Loeschen
-    if (x >= 1 and x <= 4) and y == (hoehe-3) then
+    if (x >= 1 and x <= 4) and y == (hoehe-2) then
         eingabe = ""
         nachricht = ""
         eingabeModus = ""
     end
     
     -- Aktionen
-    if (x >= 7 and x <= 12) and y == (hoehe-3) then
+    if (x >= 7 and x <= 12) and y == (hoehe-2) then
         eingabeModus = "AUFL"
-    elseif (x >= 14 and x <= 19) and y == (hoehe-3) then
+    elseif (x >= 14 and x <= 19) and y == (hoehe-2) then
         if eingabe ~= "" then
             stelleSignal(eingabe, SIGNAL_HALT, true)
             eingabe = ""
@@ -509,7 +509,7 @@ local function behandleKlick(x, y)
         else
             eingabeModus = "HALT"
         end
-    elseif (x >= 21 and x <= 25) and y == (hoehe-3) then
+    elseif (x >= 21 and x <= 25) and y == (hoehe-2) then
         if eingabe == nil or eingabe == "" then
             eingabeModus = "ERS"
         elseif signale[eingabe] ~= nil then
@@ -521,7 +521,7 @@ local function behandleKlick(x, y)
             eingabeModus = ""
             nachricht = eingabe.." ist kein Signal"
         end
-    elseif (x >= 27 and x <= 31) and y == (hoehe-3) then
+    elseif (x >= 27 and x <= 31) and y == (hoehe-2) then
         eingabe = ""
         eingabeModus = ""
         reset(true)
