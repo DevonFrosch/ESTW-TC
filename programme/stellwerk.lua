@@ -1,12 +1,8 @@
 os.loadAPI("bin/tools")
 
-local log = tools.loadAPI("log.lua", "bin")
 local debug = false
-local logLevel = log.LEVEL_INFO
-if debug then
-    logLevel = log.LEVEL_DEBUG
-end
-log.start("server", "log", logLevel)
+local log = tools.loadAPI("log.lua", "bin")
+log.start("server", "log", log.LEVEL_DEBUG)
 
 local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
 local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
@@ -405,6 +401,7 @@ end
 
 -- setzt alle Ausgänge zurück
 local function reset(auchFS)
+    log.debug("Reset auchFS="..(auchFS and "true" or "false"))
     for name, signal in pairs(signale) do
         stelleSignal(name, SIGNAL_HALT)
     end
@@ -542,14 +539,14 @@ local function onRedstoneChange(pc, side, color, state)
     -- Signale
     for sName, signal in pairs(signale) do
         if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
-            log.debug("Signalstatus "..sName)
+            log.debug("onRedstoneChange: Signalstatus "..sName)
             if state == "ON" then
                 signal.status = SIGNAL_HP
             else
                 signal.status = SIGNAL_HALT
             end
         elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
-            log.debug("Signalstatus "..sName)
+            log.debug("onRedstoneChange: Signalstatus "..sName)
             if state == "ON" then
                 signal.status = SIGNAL_SH
             else
@@ -562,9 +559,11 @@ local function onRedstoneChange(pc, side, color, state)
     for gName, gleis in pairs(gleise) do
         if tostring(gleis.pc) == pc and tostring(gleis.au) == side
                 and gleis.fb == color then
+            log.debug("onRedstoneChange: Gleisstatus "..gName)
             if state == "ON" then
                 if gleis.status ~= 1 then
                     gleis.status = 1
+                    log.debug("onRedstoneChange: Signalhaltfall "..gName)
                     signalHaltfall(gName)
                 end
             else
@@ -579,7 +578,7 @@ local function onRedstoneChange(pc, side, color, state)
     for fName, fahrstrasse in pairs(fahrstrassen) do
         if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
                 and fahrstrasse.melder.fb == color then
-            log.debug("Fahrstrassenstatus "..fName.." "..state)
+            log.debug("onRedstoneChange: Fahrstrassenstatus "..fName.." "..state)
             if state == "ON" then
                 fahrstrasse.status = 3
             else
@@ -591,6 +590,7 @@ local function onRedstoneChange(pc, side, color, state)
     -- Auflösung
     for aName, abschn in pairs(fsAufloeser) do
         if abschn.pc == tostring(pc) and tostring(abschn.au) == side and abschn.fb == color and state == "ON" then
+            log.debug("onRedstoneChange: Auflösekontakt "..aName)
             for fName, fahrstrasse in pairs(fahrstrassen) do
                 if fahrstrasse.status ~= nil and fahrstrasse.status > 0 and fahrstrasse.aufloeseAbschn == aName then
                     loeseFSauf(fName)
@@ -600,14 +600,17 @@ local function onRedstoneChange(pc, side, color, state)
     end
 end
 
-kommunikation.init(protocol, config.modem, nil, nil, log)
+log.debug("Init Kommunikation")
+kommunikation.init(protocol, config.modem, nil, log)
 
+log.debug("Starte Timer für Reset")
 nachricht = "Verbinde..."
 neuzeichnen()
 
 -- warte 5 Sekunden, damit die Clients starten können.
 kommunikation.setzteTimer(5, reset)
 
+log.debug("Start Event-Handling")
 events.listen({
     onRednetReceive = function(eventData)
         if kommunikation.rednetMessageReceivedServer(eventData.id, eventData.msg, onRedstoneChange) then
@@ -625,4 +628,5 @@ events.listen({
     end,
 })
 
+log.info("Ende")
 kommunikation.deinit()
