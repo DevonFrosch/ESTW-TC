@@ -91,6 +91,9 @@ signale = {
     ["L006X"] = {x = 45,  y = 02, richtung = "r",
         stelle_sh = {pc = "signale", au = "bottom", fb = 2},
     },
+    ["L011X"] = {x = 23,  y = 12, richtung = "r",
+        stelle_sh = {pc = "signale", au = "bottom", fb = 8},
+    },
     ["L012X"] = {x = 16,  y = 10, richtung = "r",
         stelle_sh = {pc = "signale", au = "bottom", fb = 3},
     },
@@ -115,10 +118,13 @@ fsZiele = {
     ["EH"]  = {x = 69, y = 02, laenge = 7},
     ["TLG"] = {x = 69, y = 08, laenge = 7},
     ["TL"]  = {x = 69, y = 10, laenge = 7},
+    ["011"] = {x = 19, y = 12, laenge = 3},
     ["012"] = {x = 12, y = 10, laenge = 3},
     ["013"] = {x = 12, y = 08, laenge = 3},
     ["015"] = {x = 12, y = 04, laenge = 3},
     ["022"] = {x = 62, y = 10, laenge = 3},
+    ["026"] = {x = 61, y = 02, laenge = 4},
+    
 }
 
 fsAufloeser = {
@@ -139,12 +145,13 @@ gleise = {
     ["004"] = {x = 34, y = 06, pc = "weiche+belegung", au = "left", fb = 3, text = "--- 4 ---"},
     ["005"] = {x = 34, y = 04, pc = "weiche+belegung", au = "left", fb = 4, text = "--- 5 ---"},
     ["006"] = {x = 34, y = 02, pc = "weiche+belegung", au = "left", fb = 5, text = "--- 6 ---"},
+    ["011"] = {x = 19, y = 12, pc = "weiche+belegung", au = "left", fb = 12, text = "-<-"},
     ["012"] = {x = 12, y = 10, pc = "weiche+belegung", au = "left", fb = 6, text = "-<-"},
     ["013"] = {x = 12, y = 08, pc = "weiche+belegung", au = "left", fb = 7, text = "-<-"},
     ["015"] = {x = 12, y = 04, pc = "weiche+belegung", au = "left", fb = 8, text = "-<-"},
     ["022"] = {x = 62, y = 10, pc = "weiche+belegung", au = "left", fb = 9, text = "->-"},
     ["023"] = {x = 62, y = 08, pc = "weiche+belegung", au = "left", fb = 10, text = "---"},
-    ["026"] = {x = 61, y = 02, pc = "weiche+belegung", au = "left", fb = 11, text = "----"},
+    ["026"] = {x = 61, y = 02, pc = "weiche+belegung", au = "left", fb = 11, text = "-<>-"},
     
     ["SH"]  = {x = 05, y = 04, pc = "weiche+belegung", au = "top", fb = 1, text = "<<-"},
     ["SF"]  = {x = 05, y = 08, pc = "weiche+belegung", au = "top", fb = 2, text = "<<-"},
@@ -171,7 +178,7 @@ fahrstrassenteile = {
 	["W23R"]   = {x = 47, y = 02, text = "----"},
 	["W23"]    = {x = 52, y = 02, text = "--"},
 	["W24"]    = {x = 55, y = 02, text = "--"},
-	["026"]    = {x = 61, y = 02, text = "----"},
+	["026"]    = {x = 61, y = 02, text = "-<>-"},
     ["EH"]     = {x = 69, y = 02, text = "->>"},
 	
 	["W22L/1"] = {x = 26, y = 03, text = "/"},
@@ -222,10 +229,12 @@ fahrstrassenteile = {
     ["022"]    = {x = 62, y = 10, text = "->-"},
     ["TL"]     = {x = 69, y = 10, text = "->>"},
 	
-	["W6R/1"]  = {x = 26, y = 11, text = "\\"},
+	["W6R"]    = {x = 26, y = 11, text = "\\"},
 	["W13L/2"] = {x = 50, y = 11, text = "/"},
 	
-	["W6R/2"]  = {x = 28, y = 12, text = "--"},
+	["011"]    = {x = 19, y = 12, text = "-<-"},
+	["W6L"]    = {x = 25, y = 12, text = "--"},
+	["W6"]     = {x = 28, y = 12, text = "--"},
     ["001"]    = {x = 34, y = 12, text = "--- 1 ---"},
 	["W13L/1"] = {x = 47, y = 12, text = "--"},
 }
@@ -239,7 +248,7 @@ fahrstrassen = {
             ["A"] = SIGNAL_HP,
             ["L012X"] = SIGNAL_SH,
         },
-        fsTeile = {"012","W1","W1R","W6R","001"},
+        fsTeile = {"012","W1","W1R","W6R","W6","001"},
 		weichen = {"W5/6"},
     },
     ["A.N2"] = {
@@ -433,7 +442,7 @@ fahrstrassen = {
         signale = {["P1"] = SIGNAL_HP},
         haltAbschnitte = {"012"},
         aufloeseAbschn = "012",
-        fsTeile = {"012","W1","W1R","W6R"},
+        fsTeile = {"012","W1","W1R","W6R","W6"},
 		weichen = {"W5/6"},
 	},
     ["P3.SFG"] = {
@@ -494,11 +503,18 @@ fahrstrassen = {
     },
 	
 	-- Rangierstrassen
+    ["L011X-N1"] = {
+		rangieren = true,
+        signale = {["L011X"] = SIGNAL_SH},
+        haltAbschnitte = {"001"},
+        fsTeile = {"W6L","W6","001"},
+		weichen = {},
+    },
     ["L012X-N1"] = {
 		rangieren = true,
         signale = {["L012X"] = SIGNAL_SH},
         haltAbschnitte = {"001"},
-        fsTeile = {"W1","W1R","W6R","001"},
+        fsTeile = {"W1","W1R","W6R","W6","001"},
 		weichen = {"W5/6"},
     },
     ["L012X-N2"] = {
@@ -586,6 +602,18 @@ fahrstrassen = {
         fsTeile = {"W16","W15R","W12","W11R","004"},
 		weichen = {"W15/16","W11/12"},
     },
+    ["026-P5"] = {
+		rangieren = true,
+        signale = {},
+        fsTeile = {"W24","W23","W23L","005"},
+		weichen = {"W23"},
+    },
+    ["026-P6"] = {
+		rangieren = true,
+        signale = {},
+        fsTeile = {"W24","W23","W23R","006"},
+		weichen = {},
+	},
 	
     ["N1-022"] = {
 		rangieren = true,
@@ -615,12 +643,39 @@ fahrstrassen = {
         fsTeile = {"022","W16","W15R","W12","W11R"},
 		weichen = {"W11/12","W15/16"},
 	},
+    ["L005X-026"] = {
+		rangieren = true,
+        signale = {
+            ["L005X"] = SIGNAL_SH,
+            ["N5-6"] = SIGNAL_SH,
+        },
+        haltAbschnitte = {"026"},
+        fsTeile = {"026","W24","W23","W23L"},
+		weichen = {"W23"},
+	},
+    ["L006X-026"] = {
+		rangieren = true,
+        signale = {
+            ["L006X"] = SIGNAL_SH,
+            ["N5-6"] = SIGNAL_SH,
+        },
+        haltAbschnitte = {"026"},
+        fsTeile = {"026","W24","W23","W23R"},
+		weichen = {},
+	},
 	
+    ["P1-011"] = {
+		rangieren = true,
+        signale = {["P1"] = SIGNAL_SH},
+        haltAbschnitte = {"011"},
+        fsTeile = {"011","W6L","W6"},
+		weichen = {},
+	},
     ["P1-012"] = {
 		rangieren = true,
         signale = {["P1"] = SIGNAL_SH},
         haltAbschnitte = {"012"},
-        fsTeile = {"012","W1","W1R","W6R"},
+        fsTeile = {"012","W1","W1R","W6R","W6"},
 		weichen = {"W5/6"},
 	},
     ["L002Y-012"] = {
