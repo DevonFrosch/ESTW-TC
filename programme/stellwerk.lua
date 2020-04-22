@@ -1,6 +1,6 @@
 os.loadAPI("bin/tools")
 
-local debug = false
+local projektierungsModus = false
 local log = tools.loadAPI("log.lua", "bin")
 log.start("server", "log", log.LEVEL_DEBUG)
 
@@ -55,7 +55,7 @@ local speichereFahrstrassen = config.speichereFahrstrassen or false
 local eingabe = ""
 local eingabeModus = ""
 local nachricht = ""
-local position = ""
+local position = nil
 
 local protocol = "ESTW " .. config.stellwerkName
 
@@ -123,21 +123,27 @@ end
 local function zeichneFSTeile(fahrstr, farbe)
     if fahrstr.status and fahrstr.status > 0 then
         for i, item in ipairs(fahrstr.fsTeile) do
+            -- fuehre fahrstrassenteile und gleise zusammen
+            local alleTeile = fahrstrassenteile
+            for gName, gleis in pairs(gleise) do
+                alleTeile[gName] = gleis
+            end
+            
             local fsTeil
-            if fahrstrassenteile[item] then
-                fsTeil = fahrstrassenteile[item]
+            if alleTeile[item] then
+                fsTeil = alleTeile[item]
                 bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
-            if fahrstrassenteile[item.."/1"] then
-                fsTeil = fahrstrassenteile[item.."/1"]
+            if alleTeile[item.."/1"] then
+                fsTeil = alleTeile[item.."/1"]
                 bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
-            if fahrstrassenteile[item.."/2"] then
-                fsTeil = fahrstrassenteile[item.."/2"]
+            if alleTeile[item.."/2"] then
+                fsTeil = alleTeile[item.."/2"]
                 bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
-            if fahrstrassenteile[item.."/3"] then
-                fsTeil = fahrstrassenteile[item.."/3"]
+            if alleTeile[item.."/3"] then
+                fsTeil = alleTeile[item.."/3"]
                 bildschirm.zeichneElement(fsTeil, farbe, fsTeil.text)
             end
         end
@@ -173,7 +179,7 @@ local function neuzeichnen()
     end
     
     -- zeichen Fahrstrassenteile
-    if debug then
+    if projektierungsModus then
         for i, fsTeil in pairs(fahrstrassenteile) do
             bildschirm.zeichneElement(fsTeil, colors.orange, fsTeil.text)
         end
@@ -215,7 +221,7 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    bildschirm.zeichne(1, hoehe-2, colors.white, "LOE    AUFL   HALT   ERS   RST")
+    bildschirm.zeichne(1, hoehe-2, colors.white, "LOE    AUFL   HALT   ERS")
     
     bildschirm.zeichne(1, hoehe-1, colors.white, "EIN:")
     if eingabe then
@@ -226,8 +232,11 @@ local function neuzeichnen()
     if nachricht then
         bildschirm.zeichne(6, hoehe, colors.white, nachricht)
     end
-    if position then
-        bildschirm.zeichne(1, 1, colors.white, position)
+    if projektierungsModus and position then
+        local x = position.x
+        local y = position.y
+        bildschirm.zeichne(1, 1, colors.white, x.."x"..y)
+        bildschirm.zeichne(x, y, colors.lightBlue, "X")
     end
 end
 
@@ -313,10 +322,14 @@ local function kollidierendeFahrstrasse(fahrstr)
             if andereFs.status ~= nil and andereFs.status > 0 then
                 for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
                     if fsTeil == anderesFsTeil then
-                        return fName
+                        return "Konflikt FS "..fName
                     end
                 end
             end
+        end
+        
+        if gleise[fsTeil] and gleise[fsTeil].status and gleise[fsTeil].status == 1 then
+            return "Gleisbelegung "..fsTeil
         end
     end
     return nil
@@ -334,7 +347,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         -- Kollisionserkennung
         local kollision = kollidierendeFahrstrasse(fahrstr)
         if kollision ~= nil then
-            return fehler("FS " .. name .. " nicht einstellbar: Kollidiert mit " .. kollision)
+            return fehler("FS " .. name .. " nicht einstellbar: " .. kollision)
         end
         
         fahrstrassen[name].status = 1
@@ -478,7 +491,7 @@ local function behandleKlick(x, y)
             break
         end
     end
-    if debug then
+    if projektierungsModus then
         for name, fsTeil in pairs(fahrstrassenteile) do
             local x1 = fsTeil.x
             local x2 = x1 + string.len(fsTeil.text)
@@ -521,16 +534,12 @@ local function behandleKlick(x, y)
             eingabeModus = ""
             nachricht = eingabe.." ist kein Signal"
         end
-    elseif (x >= 27 and x <= 31) and y == (hoehe-2) then
-        eingabe = ""
-        eingabeModus = ""
-        reset(true)
     end
     
     log.debug("EIN: " .. eingabe)
     log.debug("VQ: " .. nachricht)
-    if debug then
-        position = x.."x"..y
+    if projektierungsModus then
+        position = {x = x, y = y}
     end
 end
 
@@ -624,6 +633,12 @@ events.listen({
     onTimerEvent = function(eventData)
         if kommunikation.behandleTimer(eventData.id) then
             neuzeichnen()
+        end
+    end,
+    onCharEvent = function(eventData)
+        if eventData.char == "p" then
+            projektierungsModus = not projektierungsModus
+            log.warn("Projektierungs-Modus "..(projektierungsModus and "ein" or "aus"))
         end
     end,
 })

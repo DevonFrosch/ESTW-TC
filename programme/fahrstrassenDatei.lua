@@ -1,6 +1,9 @@
 local dateiname = "fahrstrassen.tmp"
 
 leseFahrstrassen = function()
+    if not fs.exists(dateiname) then
+        return {}
+    end
     local datei = fs.open(dateiname, "r")
     local fsArray = {}
     
@@ -16,6 +19,9 @@ leseFahrstrassen = function()
 end
 
 findeFahrstrasse = function(name)
+    if not fs.exists(dateiname) then
+        return {}
+    end
     local datei = fs.open(dateiname, "r")
     
     repeat
