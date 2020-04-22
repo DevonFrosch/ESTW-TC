@@ -64,11 +64,10 @@ fsZiele = {
     ["012"] = {x = 12, y = 05, laenge = 4},
 }
 fsAufloeser = {
-    ["011"] = {pc = "client1", au = "back", fb = 4},
-    ["012"] = {pc = "client1", au = "back", fb = 5},
+    ["011A"] = {pc = "client1", au = "back", fb = 4},
+    ["012A"] = {pc = "client1", au = "back", fb = 5},
     
-    ["021"] = {pc = "client1", au = "back", fb = 6},
-    ["022"] = {pc = "client1", au = "back", fb = 7},
+    ["022A"] = {pc = "client1", au = "back", fb = 6},
 }
 bahnuebergaenge = {
 }
@@ -104,6 +103,7 @@ fahrstrassen = {
             ["A"] = SIGNAL_HP,
             ["L012X"] = SIGNAL_SH,
         },
+        haltAbschnitte = {"001"},
         fsTeile = {"012","W1","W1L","W2","001"},
 		weichen = {"W1/2"},
     },
@@ -113,6 +113,7 @@ fahrstrassen = {
             ["A"] = SIGNAL_HP,
             ["L012X"] = SIGNAL_SH,
         },
+        haltAbschnitte = {"002"},
         fsTeile = {"012","W1","W1R","002"},
 		weichen = {},
     },
@@ -122,12 +123,14 @@ fahrstrassen = {
             ["AA"] = SIGNAL_HP,
             ["L011X"] = SIGNAL_SH,
         },
+        haltAbschnitte = {"001"},
         fsTeile = {"011","W2R","W2","001"},
 		weichen = {},
     },
     ["F.P1"] = {
         gleise = {"001"},
         signale = {["F"] = SIGNAL_HP},
+        haltAbschnitte = {"001"},
         fsTeile = {"W3L","W3","001"},
 		weichen = {},
     },
@@ -135,30 +138,38 @@ fahrstrassen = {
     ["N1.BH"] = {
         gleise = {},
         signale = {["N1"] = SIGNAL_HP},
+        aufloeseAbschn = "022A",
         fsTeile = {"W3","W3R","W4"},
 		weichen = {"W3/4"},
     },
     ["N2.BH"] = {
         gleise = {},
         signale = {["N2"] = SIGNAL_HP},
+        aufloeseAbschn = "022A",
         fsTeile = {"W4L","W4"},
 		weichen = {},
     },
     ["P1.AH"] = {
         gleise = {"011"},
         signale = {["P1"] = SIGNAL_HP},
+        haltAbschnitte = {"011"},
+        aufloeseAbschn = "011A",
         fsTeile = {"011","W2R","W2"},
 		weichen = {},
     },
     ["P1.AHG"] = {
         gleise = {"012"},
         signale = {["P1"] = SIGNAL_HP},
+        haltAbschnitte = {"012"},
+        aufloeseAbschn = "011A",
         fsTeile = {"012","W1","W1L","W2"},
 		weichen = {"W1/2"},
     },
     ["P2.AHG"] = {
         gleise = {"012"},
         signale = {["P2"] = SIGNAL_HP},
+        haltAbschnitte = {"012"},
+        aufloeseAbschn = "011A",
         fsTeile = {"012","W1","W1R"},
 		weichen = {},
     },
@@ -166,18 +177,21 @@ fahrstrassen = {
     ["L012X-N1"] = {
 		rangieren = true,
         signale = {["L012X"] = SIGNAL_SH},
+        haltAbschnitte = {"001"},
         fsTeile = {"W1","W1L","W2","001"},
 		weichen = {"W1/2"},
     },
     ["L012X-N2"] = {
 		rangieren = true,
         signale = {["L012X"] = SIGNAL_SH},
+        haltAbschnitte = {"002"},
         fsTeile = {"W1","W1R","002"},
 		weichen = {},
     },
     ["L011X-N1"] = {
 		rangieren = true,
         signale = {["L011X"] = SIGNAL_SH},
+        haltAbschnitte = {"001"},
         fsTeile = {"W2R","W2","001"},
 		weichen = {},
     },
@@ -185,18 +199,21 @@ fahrstrassen = {
     ["P1-011"] = {
 		rangieren = true,
         signale = {["P1"] = SIGNAL_SH},
+        haltAbschnitte = {"011"},
         fsTeile = {"011","W2R","W2"},
 		weichen = {},
     },
     ["P1-012"] = {
 		rangieren = true,
         signale = {["P1"] = SIGNAL_SH},
+        haltAbschnitte = {"012"},
         fsTeile = {"012","W1","W1L","W2"},
 		weichen = {"W1/2"},
     },
     ["P2-012"] = {
 		rangieren = true,
         signale = {["P2"] = SIGNAL_SH},
+        haltAbschnitte = {"012"},
         fsTeile = {"012","W1","W1R"},
 		weichen = {},
     },
