@@ -327,9 +327,13 @@ local function kollidierendeFahrstrasse(fahrstr)
                 end
             end
         end
-        
-        if gleise[fsTeil] and gleise[fsTeil].status and gleise[fsTeil].status == 1 then
-            return "Gleisbelegung "..fsTeil
+    end
+    
+    if fahrstr.gleise then
+        for i, gName in ipairs(fahrstr.gleise) do
+            if gleise[gName] and gleise[gName].status and gleise[gName].status == 1 then
+                return "Gleisbelegung "..gName
+            end
         end
     end
     return nil
@@ -352,7 +356,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         
         fahrstrassen[name].status = 1
         
-        if fahrstr.weichen ~= nil then
+        if fahrstr.weichen then
             for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, true)
             end
@@ -398,7 +402,7 @@ local function loeseFSauf(name, mitNachricht)
             fahrstrassenDatei.loescheFahrstrasse(name)
         end
         
-        if fahrstr.weichen ~= nil then
+        if fahrstr.weichen then
             for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, false)
             end
@@ -435,6 +439,7 @@ local function reset(auchFS)
     end
     
     nachricht = ""
+    log.info("Reset beendet")
 end
 
 local function puefeElement(x, y, eName, element, groesse, toleranz)
