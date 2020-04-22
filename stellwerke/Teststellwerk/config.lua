@@ -84,29 +84,22 @@ weichen = {
 	["W3/4"]   = {pc = "client1", au = "left", fb = 15},
 }
 fahrstrassenteile = {
-    --["011"]    = {x = 12, y = 03, text = "-11-"},
     ["W2R"]    = {x = 19, y = 03, text = "---"},
     ["W2"]     = {x = 23, y = 03, text = "-"},
-    --["001"]    = {x = 28, y = 03, text = "--1--"},
     ["W3"]     = {x = 37, y = 03, text = "-"},
     ["W3L"]    = {x = 39, y = 03, text = "--"},
     
     ["W1L"]    = {x = 21, y = 04, text = "/"},
     ["W3R"]    = {x = 39, y = 04, text = "\\"},
     
-    --["012"]    = {x = 12, y = 05, text = "-12-"},
     ["W1"]     = {x = 19, y = 05, text = "-"},
     ["W1R"]    = {x = 21, y = 05, text = "---"},
-    --["002"]    = {x = 28, y = 05, text = "--2--"},
     ["W4L"]    = {x = 37, y = 05, text = "---"},
     ["W4"]     = {x = 41, y = 05, text = "---"},
 }
 fahrstrassen = {
     ["A.N1"] = {
-        gleise = {
-            ["012"] = true,
-            ["001"] = true,
-        },
+        gleise = {"012","001"},
         signale = {
             ["A"] = SIGNAL_HP,
             ["L012X"] = SIGNAL_SH,
@@ -115,10 +108,7 @@ fahrstrassen = {
 		weichen = {"W1/2"},
     },
     ["A.N2"] = {
-        gleise = {
-            ["012"] = true,
-            ["002"] = true,
-        },
+        gleise = {"012","002"},
         signale = {
             ["A"] = SIGNAL_HP,
             ["L012X"] = SIGNAL_SH,
@@ -127,10 +117,7 @@ fahrstrassen = {
 		weichen = {},
     },
     ["AA.N1"] = {
-        gleise = {
-            ["011"] = true,
-            ["001"] = true,
-        },
+        gleise = {"011","001"},
         signale = {
             ["AA"] = SIGNAL_HP,
             ["L011X"] = SIGNAL_SH,
@@ -139,7 +126,7 @@ fahrstrassen = {
 		weichen = {},
     },
     ["F.P1"] = {
-        gleise = {["001"] = true},
+        gleise = {"001"},
         signale = {["F"] = SIGNAL_HP},
         fsTeile = {"W3L","W3","001"},
 		weichen = {},
@@ -158,19 +145,19 @@ fahrstrassen = {
 		weichen = {},
     },
     ["P1.AH"] = {
-        gleise = {["011"] = true},
+        gleise = {"011"},
         signale = {["P1"] = SIGNAL_HP},
         fsTeile = {"011","W2R","W2"},
 		weichen = {},
     },
     ["P1.AHG"] = {
-        gleise = {["012"] = true},
+        gleise = {"012"},
         signale = {["P1"] = SIGNAL_HP},
         fsTeile = {"012","W1","W1L","W2"},
 		weichen = {"W1/2"},
     },
     ["P2.AHG"] = {
-        gleise = {["012"] = true},
+        gleise = {"012"},
         signale = {["P2"] = SIGNAL_HP},
         fsTeile = {"012","W1","W1R"},
 		weichen = {},
