@@ -27,6 +27,8 @@ loadAPI = function(fileName, path)
     end
     
     local filePath = fileName
+	fileName = fileName:gsub(".*/", "")
+	
     if path ~= nil then
         filePath = path .. "/" .. filePath
     end
