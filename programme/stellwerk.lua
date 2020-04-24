@@ -303,14 +303,14 @@ local function stelleSignal(name, signalbild, mitNachricht)
     
     if signal[signalbild] ~= nil then
         kommunikation.sendRedstoneImpulseServer(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb)
-    elseif signalbild == SIGNAL_HALT then
+    else
         aktiviereSignalbild(signal, SIGNAL_HP, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
         aktiviereSignalbild(signal, SIGNAL_ERS, false)
-        signale[name].status = signalbild
-    else
-        signale[name].status = signalbild
-        aktiviereSignalbild(signal, signalbild, true)
+        
+        if signalbild ~= SIGNAL_HALT then
+            aktiviereSignalbild(signal, signalbild, true)
+        end
     end
     
     erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
@@ -593,25 +593,30 @@ local function behandleKlick(x, y)
 end
 
 -- Kommunikation
+local function pruefeAenderungSignalStellung(sName, signalConfig, signalbild, pc, side, color, state)
+    if signalConfig == nil
+        or tostring(signalConfig.pc) ~= pc
+        or tostring(signalConfig.au) ~= side
+        or signalConfig.fb ~= color
+    then
+        return
+    end
+    
+    if state == "ON" then
+        log.debug("onRedstoneChange: Signalstatus "..sName.." auf "..signalbild)
+        signale[sName].status = signalbild
+    elseif signale[sName].status == signalbild then
+        log.debug("onRedstoneChange: Signalstatus "..sName.." von "..signalbild.." auf halt")
+        signale[sName].status = SIGNAL_HALT
+    end
+end
 local function onRedstoneChange(pc, side, color, state)
     -- Signale
     if type(signale) == "table" then
         for sName, signal in pairs(signale) do
-            if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
-                log.debug("onRedstoneChange: Signalstatus "..sName)
-                if state == "ON" then
-                    signal.status = SIGNAL_HP
-                else
-                    signal.status = SIGNAL_HALT
-                end
-            elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
-                log.debug("onRedstoneChange: Signalstatus "..sName)
-                if state == "ON" then
-                    signal.status = SIGNAL_SH
-                else
-                    signal.status = SIGNAL_HALT
-                end
-            end
+            pruefeAenderungSignalStellung(sName, (signal.hp  or signal.stelle_hp ), SIGNAL_HP,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.sh  or signal.stelle_sh ), SIGNAL_SH,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.ers or signal.stelle_ers), SIGNAL_ERS, pc, side, color, state)
         end
     end
     
