@@ -3,6 +3,7 @@ os.loadAPI("bin/tools")
 local projektierungsModus = false
 local log = tools.loadAPI("log.lua", "bin")
 log.start("server", "log", log.LEVEL_DEBUG)
+log.info("Starte Server")
 
 local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
 local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
@@ -14,21 +15,16 @@ local config = tools.loadAPI("config.lua")
 
 local configContents = {
     gleisbildDatei = "string",
-    signale = "table",
-    fsZiele = "table",
-    bahnuebergaenge = "table",
-    gleise = "table",
-    weichen = "table",
-    fahrstrassenteile = "table",
-    fahrstrassen = "table",
     bildschirm = "string",
     modem = "string",
     stellwerkName = "string",
+    
+    fahrstrassen = "table",
 }
 
 for name, typ in pairs(configContents) do
     if type(config[name]) ~= typ then
-        log.error("Config: kein "..name)
+        log.error("Config: "..name.." fehlt oder hat den falschen Typ (soll "..typ..", ist "..type(config[name])..")")
         return
     end
 end
@@ -114,19 +110,26 @@ end
 local function zeichneGleis(gleis, farbe)
     if gleis.text then
         bildschirm.zeichneElement(gleis, farbe, gleis.text)
-    else
+    elseif type(gleis.abschnitte) == "table" then
         for j, abschnitt in ipairs(gleis.abschnitte) do
             bildschirm.zeichne(abschnitt.x, abschnitt.y, farbe, abschnitt.text)
         end
     end
 end
 local function zeichneFSTeile(fahrstr, farbe)
-    if fahrstr.status and fahrstr.status > 0 then
+    if fahrstr.status and fahrstr.status > 0 and type(fahrstr.fsTeile) == "table" then
         for i, item in ipairs(fahrstr.fsTeile) do
             -- fuehre fahrstrassenteile und gleise zusammen
-            local alleTeile = fahrstrassenteile
-            for gName, gleis in pairs(gleise) do
-                alleTeile[gName] = gleis
+            local alleTeile = {}
+            
+            if type(fahrstrassenteile) == "table" then
+                alleTeile = fahrstrassenteile
+            end
+            
+            if type(gleise) == "table" then
+                for gName, gleis in pairs(gleise) do
+                    alleTeile[gName] = gleis
+                end
             end
             
             local fsTeil
@@ -169,7 +172,7 @@ local function neuzeichnen()
     for i, item in pairs(gleisbild) do
         if type(item) == "string" then
             bildschirm.zeichne(1, i, colors.white, item)
-        else
+        elseif type(item) == "table" then
             local offset = 1
             for j, teil in ipairs(item) do
                 bildschirm.zeichne(offset, i, colors.white, teil)
@@ -179,45 +182,55 @@ local function neuzeichnen()
     end
     
     -- zeichen Fahrstrassenteile
-    if projektierungsModus then
+    if projektierungsModus and type(fahrstrassenteile) == "table" then
         for i, fsTeil in pairs(fahrstrassenteile) do
             bildschirm.zeichneElement(fsTeil, colors.orange, fsTeil.text)
         end
     end
     
     -- zeichne Signale
-    for i, signal in pairs(signale) do
-        if signal.hp ~= nil or signal.stelle_hp ~= nil then
-            zeichneSignal(signal, true)
-        else
-            zeichneSignal(signal, false)
+    if type(signale) == "table" then
+        for sName, signal in pairs(signale) do
+            if signal.hp ~= nil or signal.stelle_hp ~= nil then
+                zeichneSignal(signal, true)
+            else
+                zeichneSignal(signal, false)
+            end
         end
     end
     
     -- zeichne Gleise
-    for i, gleis in pairs(gleise) do
-        zeichneGleis(gleis, colors.yellow)
+    if type(gleise) == "table" then
+        for gName, gleis in pairs(gleise) do
+            zeichneGleis(gleis, colors.yellow)
+        end
     end
     
     -- zeichne Fahrstrassen
-    for i, fahrstr in pairs(fahrstrassen) do
-        local fsFarbe = colors.lime
-        if fahrstr.rangieren then
-            fsFarbe = colors.blue
+    if type(fahrstrassen) == "table" then
+        for fName, fahrstr in pairs(fahrstrassen) do
+            local fsFarbe = colors.lime
+            if fahrstr.rangieren then
+                fsFarbe = colors.blue
+            end
+            zeichneFSTeile(fahrstr, fsFarbe)
         end
-        zeichneFSTeile(fahrstr, fsFarbe)
     end
     
     -- zeichne besetzte Gleise
-    for i, gleis in pairs(gleise) do
-        if gleis.status == 1 then
-            zeichneGleis(gleis, colors.red)
+    if type(gleise) == "table" then
+        for gName, gleis in pairs(gleise) do
+            if gleis.status == 1 then
+                zeichneGleis(gleis, colors.red)
+            end
         end
     end
     
     -- zeichne Bahnuebergaenge
-    for name, bue in pairs(bahnuebergaenge) do
-        zeichneBahnuebergang(name, bue)
+    if type(bahnuebergaenge) == "table" then
+        for name, bue in pairs(bahnuebergaenge) do
+            zeichneBahnuebergang(name, bue)
+        end
     end
     
     -- Textzeilen
@@ -253,9 +266,12 @@ local function erfolg(mitNachricht, text)
 end
 
 local function stelleWeiche(name, abzweigend, mitNachricht)
+    if type(weichen) ~= "table" then
+        return fehler("Keine Weichen projektiert")
+    end
     local weiche = weichen[name]
     if weiche == nil then
-        return fehler("stelleWeiche: Weiche "..name.." nicht projektiert")
+        return fehler("Weiche "..name.." nicht projektiert")
     end
     
     kommunikation.sendRestoneMessageServer(weiche.pc, weiche.au, weiche.fb, abzweigend)
@@ -268,12 +284,18 @@ local function stelleWeiche(name, abzweigend, mitNachricht)
     erfolg(mitNachricht, "Weiche " .. name .. " umgestellt auf " .. lage)
 end
 local function aktiviereSignalbild(signal, signalbild, aktiv)
+    if type(signal) ~= "table" then
+        return fehler("Signalbild "..(signalbild or "nil").." nicht projektiert")
+    end
     local cnf = signal["stelle_"..signalbild]
     if cnf ~= nil then
         kommunikation.sendRestoneMessageServer(cnf.pc, cnf.au, cnf.fb, aktiv)
     end
 end
 local function stelleSignal(name, signalbild, mitNachricht)
+    if type(signale) ~= "table" then
+        return fehler("Keine Signale projektiert")
+    end
     local signal = signale[name]
     if signal == nil then
         return fehler("Signal "..name.." nicht projektiert")
@@ -294,8 +316,11 @@ local function stelleSignal(name, signalbild, mitNachricht)
     erfolg(mitNachricht, "Signal " .. name .. " auf " .. signalbild .. " gestellt")
 end
 local function signalHaltfall(gleisName)
+    if type(signale) ~= "table" then
+        return fehler("Keine Signale projektiert")
+    end
     for sName, signal in pairs(signale) do
-        if signal.haltAbschnitte ~= nil then
+        if type(signal.haltAbschnitte) == "table" then
             for haName, haltAbschnitt in ipairs(signal.haltAbschnitte) do
                 if gleisName == haltAbschnitt then
                     stelleSignal(sName, SIGNAL_HALT)
@@ -303,12 +328,14 @@ local function signalHaltfall(gleisName)
             end
         end
     end
-    for fName, fahrstrasse in pairs(fahrstrassen) do
-        if fahrstrasse.haltAbschnitte ~= nil then
-            for i, haltAbschnitt in ipairs(fahrstrasse.haltAbschnitte) do
-                if gleisName == haltAbschnitt then
-                    for sName, bild in pairs(fahrstrasse.signale) do
-                        stelleSignal(sName, SIGNAL_HALT)
+    if type(fahrstrassen) == "table" then
+        for fName, fahrstrasse in pairs(fahrstrassen) do
+            if type(fahrstrasse.haltAbschnitte) == "table" then
+                for i, haltAbschnitt in ipairs(fahrstrasse.haltAbschnitte) do
+                    if gleisName == haltAbschnitt and type(fahrstrasse.signale) == "table" then
+                        for sName, bild in pairs(fahrstrasse.signale) do
+                            stelleSignal(sName, SIGNAL_HALT)
+                        end
                     end
                 end
             end
@@ -317,19 +344,21 @@ local function signalHaltfall(gleisName)
 end
 
 local function kollidierendeFahrstrasse(fahrstr)
-    for i, fsTeil in ipairs(fahrstr.fsTeile) do
-        for fName, andereFs in pairs(fahrstrassen) do
-            if andereFs.status ~= nil and andereFs.status > 0 then
-                for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
-                    if fsTeil == anderesFsTeil then
-                        return "Konflikt FS "..fName
+    if type(fahrstr.fsTeile) == "table" then
+        for i, fsTeil in ipairs(fahrstr.fsTeile) do
+            for fName, andereFs in pairs(fahrstrassen) do
+                if andereFs.status ~= nil and andereFs.status > 0 and type(andereFs.fsTeile) == "table" then
+                    for j, anderesFsTeil in ipairs(andereFs.fsTeile) do
+                        if fsTeil == anderesFsTeil then
+                            return "Konflikt FS "..fName
+                        end
                     end
                 end
             end
         end
     end
     
-    if fahrstr.gleise then
+    if type(fahrstr.gleise) == "table" then
         for i, gName in ipairs(fahrstr.gleise) do
             if gleise[gName] and gleise[gName].status and gleise[gName].status == 1 then
                 return "Gleisbelegung "..gName
@@ -339,6 +368,9 @@ local function kollidierendeFahrstrasse(fahrstr)
     return nil
 end
 local function stelleFahrstrasse(name, mitNachricht, istReset)
+    if type(fahrstrassen) ~= "table" then
+        return fehler("Keine Fahrstrassen projektiert")
+    end
     local rueckmeldung = ""
     local fahrstr = fahrstrassen[name]
     if fahrstr == nil then
@@ -347,7 +379,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
     
     if fahrstr.steller ~= nil then
         kommunikation.sendRedstoneImpulseServer(fahrstr.steller.pc, fahrstr.steller.au, fahrstr.steller.fb)
-    elseif fahrstr.signale ~= nil then
+    elseif type(fahrstr.signale) == "table" then
         -- Kollisionserkennung
         local kollision = kollidierendeFahrstrasse(fahrstr)
         if kollision ~= nil then
@@ -356,7 +388,7 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         
         fahrstrassen[name].status = 1
         
-        if fahrstr.weichen then
+        if type(fahrstr.weichen) == "table" then
             for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, true)
             end
@@ -375,7 +407,6 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
         for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, signalbild)
         end
-        
     else
         return fehler("Fahrstrasse " .. name .. " nicht richtig projektiert (keine Aktion)")
     end
@@ -383,15 +414,18 @@ local function stelleFahrstrasse(name, mitNachricht, istReset)
     erfolg(mitNachricht, "Fahrstrasse " .. name .. " eingestellt")
 end
 local function loeseFSauf(name, mitNachricht)
+    if type(fahrstrassen) ~= "table" then
+        return fehler("Keine Fahrstrassen projektiert")
+    end
     local rueckmeldung = ""
     local fahrstr = fahrstrassen[name]
     if fahrstr == nil then
         return fehler("Fahrstrasse "..name.." nicht projektiert")
     end
     
-    if fahrstr.aufloeser ~= nil then
+    if type(fahrstr.aufloeser) == "table" then
         kommunikation.sendRedstoneImpulseServer(fahrstr.aufloeser.pc, fahrstr.aufloeser.au, fahrstr.aufloeser.fb)
-    elseif fahrstr.signale ~= nil then
+    elseif type(fahrstr.signale) == "table" then
         for signal, signalbild in pairs(fahrstr.signale) do
             stelleSignal(signal, SIGNAL_HALT)
         end
@@ -402,7 +436,7 @@ local function loeseFSauf(name, mitNachricht)
             fahrstrassenDatei.loescheFahrstrasse(name)
         end
         
-        if fahrstr.weichen then
+        if type(fahrstr.weichen) == "table" then
             for i, weiche in pairs(fahrstr.weichen) do
                 stelleWeiche(weiche, false)
             end
@@ -419,18 +453,22 @@ end
 -- setzt alle Ausgänge zurück
 local function reset(auchFS)
     log.debug("Reset auchFS="..(auchFS and "true" or "false"))
-    for name, signal in pairs(signale) do
-        stelleSignal(name, SIGNAL_HALT)
+    if type(signale) == "table" then
+        for name, signal in pairs(signale) do
+            stelleSignal(name, SIGNAL_HALT)
+        end
     end
     
-    for name, weiche in pairs(weichen) do
-        stelleWeiche(name, false)
+    if type(weichen) == "table" then
+        for name, weiche in pairs(weichen) do
+            stelleWeiche(name, false)
+        end
     end
     
-    if auchFS then
-        for name, weiche in pairs(fahrstrassen) do
-        loeseFSauf(name, false)
-    end
+    if auchFS and type(fahrstrassen) == "table" then
+        for name, fahrstrasse in pairs(fahrstrassen) do
+            loeseFSauf(name, false)
+        end
     elseif speichereFahrstrassen then
         local alteFahrstrassen = fahrstrassenDatei.leseFahrstrassen()
         for i, fahrstrasse in ipairs(alteFahrstrassen) do
@@ -456,7 +494,7 @@ local function puefeElement(x, y, eName, element, groesse, toleranz)
                 eingabe = eName
                 return true
             end
-        else
+        elseif type(fahrstrassen) == "table" then
             local fsName
             if fahrstrassen[eingabe .. "." .. eName] then
                 fsName = eingabe .. "." .. eName
@@ -486,17 +524,21 @@ end
 local function behandleKlick(x, y)
     nachricht = ""
     
-    for name, signal in pairs(signale) do
-        if puefeElement(x, y, name, signal, 1, 1) then
-            break
+    if type(signale) == "table" then
+        for name, signal in pairs(signale) do
+            if puefeElement(x, y, name, signal, 1, 1) then
+                break
+            end
         end
     end
-    for name, ziel in pairs(fsZiele) do
-        if puefeElement(x, y, name, ziel, ziel.laenge) then
-            break
+    if type(fsZiele) == "table" then
+        for name, ziel in pairs(fsZiele) do
+            if puefeElement(x, y, name, ziel, ziel.laenge) then
+                break
+            end
         end
     end
-    if projektierungsModus then
+    if projektierungsModus and type(fahrstrassenteile) == "table" then
         for name, fsTeil in pairs(fahrstrassenteile) do
             local x1 = fsTeil.x
             local x2 = x1 + string.len(fsTeil.text)
@@ -530,7 +572,7 @@ local function behandleKlick(x, y)
     elseif (x >= 21 and x <= 25) and y == (hoehe-2) then
         if eingabe == nil or eingabe == "" then
             eingabeModus = "ERS"
-        elseif signale[eingabe] ~= nil then
+        elseif type(signale) == "table" and signale[eingabe] ~= nil then
             stelleSignal(eingabe, SIGNAL_ERS, true)
             eingabe = ""
             eingabeModus = ""
@@ -551,63 +593,71 @@ end
 -- Kommunikation
 local function onRedstoneChange(pc, side, color, state)
     -- Signale
-    for sName, signal in pairs(signale) do
-        if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
-            log.debug("onRedstoneChange: Signalstatus "..sName)
-            if state == "ON" then
-                signal.status = SIGNAL_HP
-            else
-                signal.status = SIGNAL_HALT
-            end
-        elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
-            log.debug("onRedstoneChange: Signalstatus "..sName)
-            if state == "ON" then
-                signal.status = SIGNAL_SH
-            else
-                signal.status = SIGNAL_HALT
+    if type(signale) == "table" then
+        for sName, signal in pairs(signale) do
+            if signal.hp ~= nil and tostring(signal.hp.pc) == pc and signal.hp.fb == color and tostring(signal.hp.au) == side then
+                log.debug("onRedstoneChange: Signalstatus "..sName)
+                if state == "ON" then
+                    signal.status = SIGNAL_HP
+                else
+                    signal.status = SIGNAL_HALT
+                end
+            elseif signal.sh ~= nil and tostring(signal.sh.pc) == pc and signal.sh.fb == color and tostring(signal.sh.au) == side then
+                log.debug("onRedstoneChange: Signalstatus "..sName)
+                if state == "ON" then
+                    signal.status = SIGNAL_SH
+                else
+                    signal.status = SIGNAL_HALT
+                end
             end
         end
     end
     
     -- Gleise
-    for gName, gleis in pairs(gleise) do
-        if tostring(gleis.pc) == pc and tostring(gleis.au) == side
-                and gleis.fb == color then
-            log.debug("onRedstoneChange: Gleisstatus "..gName)
-            if state == "ON" then
-                if gleis.status ~= 1 then
-                    gleis.status = 1
-                    log.debug("onRedstoneChange: Signalhaltfall "..gName)
-                    signalHaltfall(gName)
-                end
-            else
-                if gleis.status ~= 0 then
-                    gleis.status = 0
+    if type(gleise) == "table" then
+        for gName, gleis in pairs(gleise) do
+            if tostring(gleis.pc) == pc and tostring(gleis.au) == side
+                    and gleis.fb == color then
+                log.debug("onRedstoneChange: Gleisstatus "..gName)
+                if state == "ON" then
+                    if gleis.status ~= 1 then
+                        gleis.status = 1
+                        log.debug("onRedstoneChange: Signalhaltfall "..gName)
+                        signalHaltfall(gName)
+                    end
+                else
+                    if gleis.status ~= 0 then
+                        gleis.status = 0
+                    end
                 end
             end
         end
     end
     
     -- Fahrstrassen
-    for fName, fahrstrasse in pairs(fahrstrassen) do
-        if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
-                and fahrstrasse.melder.fb == color then
-            log.debug("onRedstoneChange: Fahrstrassenstatus "..fName.." "..state)
-            if state == "ON" then
-                fahrstrasse.status = 3
-            else
-                fahrstrasse.status = 0
+    if type(fahrstrassen) == "table" then
+        for fName, fahrstrasse in pairs(fahrstrassen) do
+            if fahrstrasse.melder and tostring(fahrstrasse.melder.pc) == tostring(pc) and tostring(fahrstrasse.melder.au) == side
+                    and fahrstrasse.melder.fb == color then
+                log.debug("onRedstoneChange: Fahrstrassenstatus "..fName.." "..state)
+                if state == "ON" then
+                    fahrstrasse.status = 3
+                else
+                    fahrstrasse.status = 0
+                end
             end
         end
     end
     
     -- Auflösung
-    for aName, abschn in pairs(fsAufloeser) do
-        if abschn.pc == tostring(pc) and tostring(abschn.au) == side and abschn.fb == color and state == "ON" then
-            log.debug("onRedstoneChange: Auflösekontakt "..aName)
-            for fName, fahrstrasse in pairs(fahrstrassen) do
-                if fahrstrasse.status ~= nil and fahrstrasse.status > 0 and fahrstrasse.aufloeseAbschn == aName then
-                    loeseFSauf(fName)
+    if type(fsAufloeser) == "table" then
+        for aName, abschn in pairs(fsAufloeser) do
+            if abschn.pc == tostring(pc) and tostring(abschn.au) == side and abschn.fb == color and state == "ON" and type(fahrstrassen) == "table" then
+                log.debug("onRedstoneChange: Auflösekontakt "..aName)
+                for fName, fahrstrasse in pairs(fahrstrassen) do
+                    if fahrstrasse.status ~= nil and fahrstrasse.status > 0 and fahrstrasse.aufloeseAbschn == aName then
+                        loeseFSauf(fName)
+                    end
                 end
             end
         end
