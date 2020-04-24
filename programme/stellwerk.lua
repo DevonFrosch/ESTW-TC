@@ -234,7 +234,7 @@ local function neuzeichnen()
     end
     
     -- Textzeilen
-    bildschirm.zeichne(1, hoehe-2, colors.white, "LOE    AUFL   HALT   ERS")
+    bildschirm.zeichne(1, hoehe-2, colors.white, "LOE    AUFL   HALT   ERS   RESET")
     
     bildschirm.zeichne(1, hoehe-1, colors.white, "EIN:")
     if eingabe then
@@ -581,6 +581,8 @@ local function behandleKlick(x, y)
             eingabeModus = ""
             nachricht = eingabe.." ist kein Signal"
         end
+    elseif (x >= 27 and x <= 34) and y == (hoehe-2) then
+        shell.run("reboot")
     end
     
     log.debug("EIN: " .. eingabe)
