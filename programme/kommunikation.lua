@@ -206,8 +206,8 @@ init = function(protocol, modem, role, logger)
                 log.debug("Frage Client "..foundClient)
                 rednet.send(foundClient, "HELLO IAM "..ownName, local_protocol)
             end
-		else
-			log.debug("Keine Clients gefunden")
+        else
+            log.debug("Keine Clients gefunden")
         end
     else
         ownName = "Client "..role
