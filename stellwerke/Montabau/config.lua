@@ -150,6 +150,8 @@ fsAufloeser = {
 bahnuebergaenge = {}
 
 gleise = {
+    ["W24R"]   = {x = 57, y = 01, pc = "weiche+belegung", au = "bottom", fb = 11, text = "\\"},
+    
     ["W22L/2"] = {x = 28, y = 02, pc = "weiche+belegung", au = "bottom", fb = 09, text = "--"},
     ["006"]    = {x = 34, y = 02, pc = "weiche+belegung", au = "left",   fb = 05, text = "--- 6 ---"},
 	["W23R"]   = {x = 47, y = 02, pc = "weiche+belegung", au = "bottom", fb = 10, text = "----"},
@@ -165,20 +167,22 @@ gleise = {
     ["SH"]     = {x = 05, y = 04, pc = "block", au = "bottom", fb = 00, text = "<<-"},
     ["015"]    = {x = 12, y = 04, pc = "weiche+belegung", au = "left",   fb = 08, text = "-<-"},
 	["W21"]    = {x = 18, y = 04, pc = "weiche+belegung", au = "bottom", fb = 08, text = "----"},
-	["W21L"]   = {x = 23, y = 04, pc = "weiche+belegung", au = "bottom", fb = 08, text = "--"},
+	["W21L/1"] = {x = 23, y = 04, pc = "weiche+belegung", au = "bottom", fb = 08, text = "-"},
+	["W21L/2"] = {x = 24, y = 04, pc = "weiche+belegung", au = "bottom", fb = 09, text = "-"},
 	["W22R"]   = {x = 26, y = 04, pc = "weiche+belegung", au = "bottom", fb = 09, text = "----"},
     ["005"]    = {x = 34, y = 04, pc = "weiche+belegung", au = "left",   fb = 04, text = "--- 5 ---"},
 	["W23L/1"] = {x = 47, y = 04, pc = "weiche+belegung", au = "bottom", fb = 10, text = "--"},
 
 	["W21R/1"] = {x = 23, y = 05, pc = "weiche+belegung", au = "bottom", fb = 08, text = "\\"},
 
-    ["W21R/2"] = {x = 25, y = 06, pc = "weiche+belegung", au = "bottom", fb = 01, text = "--"},
-	["W4"]     = {x = 28, y = 06, pc = "weiche+belegung", au = "bottom", fb = 01, text = "--"},
+    ["W21R/2"] = {x = 25, y = 06, pc = "weiche+belegung", au = "bottom", fb = 02, text = "--"},
+	["W4"]     = {x = 28, y = 06, pc = "weiche+belegung", au = "bottom", fb = 02, text = "--"},
     ["004"]    = {x = 34, y = 06, pc = "weiche+belegung", au = "left",   fb = 03, text = "--- 4 ---"},
 	["W11R/1"] = {x = 47, y = 06, pc = "weiche+belegung", au = "bottom", fb = 04, text = "--"},
+	["W11L"]   = {x = 50, y = 06, pc = "weiche+belegung", au = "bottom", fb = 04, text = "--"},
 
-	["W4L"]    = {x = 26, y = 07, pc = "weiche+belegung", au = "bottom", fb = 02, text = "/"},
-	["W11R/2"] = {x = 50, y = 07, pc = "weiche+belegung", au = "bottom", fb = 04, text = "\\"},
+	["W4L"]    = {x = 26, y = 07, pc = "weiche+belegung", au = "bottom", fb = 02, text = "/", weiche = {"W3/4", 1}},
+	["W11R/2"] = {x = 50, y = 07, pc = "weiche+belegung", au = "bottom", fb = 04, text = "\\", weiche = {"W11/12", 1}},
 
     ["SF"]     = {x = 05, y = 08, pc = "block", au = "bottom", fb = 01, text = "<<-"},
     ["013"]    = {x = 12, y = 08, pc = "weiche+belegung", au = "left",   fb = 07, text = "-<-"},
@@ -192,8 +196,8 @@ gleise = {
     ["023"]    = {x = 61, y = 08, pc = "weiche+belegung", au = "left",   fb = 10, text = "-----"},
     ["TLG"]    = {x = 70, y = 08, pc = "block", au = "bottom", fb = 04, text = "->>"},
 
-	["W1L"]    = {x = 21, y = 09, pc = "weiche+belegung", au = "bottom", fb = 00, text = "/"},
-	["W15R"]   = {x = 55, y = 09, pc = "weiche+belegung", au = "bottom", fb = 05, text = "\\"},
+	["W1L"]    = {x = 21, y = 09, pc = "weiche+belegung", au = "bottom", fb = 00, text = "/", weiche = {"W1/2", 1}},
+	["W15R"]   = {x = 55, y = 09, pc = "weiche+belegung", au = "bottom", fb = 05, text = "\\", weiche = {"W15/16", 1}},
 
     ["SFG"]    = {x = 05, y = 10, pc = "block", au = "bottom", fb = 02, text = "<<-"},
     ["012"]    = {x = 12, y = 10, pc = "weiche+belegung", au = "left",   fb = 06, text = "-<-"},
@@ -207,14 +211,15 @@ gleise = {
     ["022"]    = {x = 63, y = 10, pc = "weiche+belegung", au = "left",   fb = 09, text = "->-"},
     ["TL"]     = {x = 70, y = 10, pc = "block", au = "bottom", fb = 05, text = "->>"},
 
-	["W6R"]    = {x = 26, y = 11, pc = "weiche+belegung", au = "bottom", fb = 03, text = "\\"},
-	["W13L/2"] = {x = 50, y = 11, pc = "weiche+belegung", au = "bottom", fb = 06, text = "/"},
+	["W6R"]    = {x = 26, y = 11, pc = "weiche+belegung", au = "bottom", fb = 03, text = "\\", weiche = {"W5/6", 1}},
+	["W13L/2"] = {x = 50, y = 11, pc = "weiche+belegung", au = "bottom", fb = 06, text = "/", weiche = {"W13/14", 1}},
 
     ["011"]    = {x = 19, y = 12, pc = "weiche+belegung", au = "left",   fb = 12, text = "-<-"},
 	["W6L"]    = {x = 25, y = 12, pc = "weiche+belegung", au = "bottom", fb = 03, text = "--"},
 	["W6"]     = {x = 28, y = 12, pc = "weiche+belegung", au = "bottom", fb = 03, text = "--"},
     ["001"]    = {x = 34, y = 12, pc = "weiche+belegung", au = "left",   fb = 00, text = "--- 1 ---"},
 	["W13L/1"] = {x = 47, y = 12, pc = "weiche+belegung", au = "bottom", fb = 06, text = "--"},
+	["W13R"]   = {x = 50, y = 12, pc = "weiche+belegung", au = "bottom", fb = 06, text = "--"},
 }
 weichen = {
 	["W1/2"]   = {pc = "weiche+belegung", au = "right", fb = 0},
