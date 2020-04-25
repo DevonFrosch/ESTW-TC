@@ -619,22 +619,33 @@ local function onRedstoneChange(pc, side, color, state)
         end
     end
     
+    -- Weichen
+    if type(weichen) == "table" then
+        for wName, weiche in pairs(weichen) do
+            if tostring(weiche.pc) == pc and tostring(weiche.au) == side
+                    and weiche.fb == color then
+                log.debug("onRedstoneChange: Weichenlage "..wName)
+                if state == "ON" and weiche.status ~= 1 then
+                    weiche.status = 1
+                elseif weiche.status ~= 0 then
+                    weiche.status = 0
+                end
+            end
+        end
+    end
+    
     -- Gleise
     if type(gleise) == "table" then
         for gName, gleis in pairs(gleise) do
             if tostring(gleis.pc) == pc and tostring(gleis.au) == side
                     and gleis.fb == color then
                 log.debug("onRedstoneChange: Gleisstatus "..gName)
-                if state == "ON" then
-                    if gleis.status ~= 1 then
-                        gleis.status = 1
-                        log.debug("onRedstoneChange: Signalhaltfall "..gName)
-                        signalHaltfall(gName)
-                    end
-                else
-                    if gleis.status ~= 0 then
-                        gleis.status = 0
-                    end
+                if state == "ON" and gleis.status ~= 1 then
+                    gleis.status = 1
+                    log.debug("onRedstoneChange: Signalhaltfall "..gName)
+                    signalHaltfall(gName)
+                elseif gleis.status ~= 0 then
+                    gleis.status = 0
                 end
             end
         end
