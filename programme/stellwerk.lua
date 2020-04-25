@@ -17,8 +17,6 @@ local configContents = {
     bildschirm = "string",
     modem = "string",
     stellwerkName = "string",
-    
-    fahrstrassen = "table",
 }
 
 for name, typ in pairs(configContents) do
