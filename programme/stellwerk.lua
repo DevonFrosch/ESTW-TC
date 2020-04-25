@@ -163,6 +163,22 @@ local function zeichneBahnuebergang(name, bue)
     end
 end
 
+local function pruefeWeichenstatusFuerGleis(gleis, gName)
+    if type(gleis.weiche) ~= "table" or type(weichen) ~= "table" then
+        return true
+    end
+    if type(gleis.weiche[1]) ~= "string" or type(gleis.weiche[2]) ~= "number" then
+        log.error("Weiche fuer Gleis "..gName.." falsch projektiert")
+        return true
+    end
+    local weiche = weichen[gleis.weiche[1]]
+    
+    if type(weiche) ~= "table" then
+        log.error("Weiche fuer Gleis "..gName.." nicht gefunden")
+        return true
+    end
+    return weiche.status == gleis.weiche[2]
+end
 local function neuzeichnen()
     -- Hintergrundbild
     bildschirm.leeren()
@@ -219,7 +235,7 @@ local function neuzeichnen()
     -- zeichne besetzte Gleise
     if type(gleise) == "table" then
         for gName, gleis in pairs(gleise) do
-            if gleis.status == 1 then
+            if gleis.status == 1 and pruefeWeichenstatusFuerGleis(gleis, gName) then
                 zeichneGleis(gleis, colors.red)
             end
         end
@@ -319,7 +335,7 @@ local function signalHaltfall(gleisName)
         return fehler("Keine Signale projektiert")
     end
     for sName, signal in pairs(signale) do
-        if type(fahrstrasse.haltAbschnitte) == "table" then
+        if type(signal.haltAbschnitte) == "table" then
             for haName, haltAbschnitt in ipairs(signal.haltAbschnitte) do
                 if gleisName == haltAbschnitt then
                     stelleSignal(sName, SIGNAL_HALT)
