@@ -30,6 +30,8 @@ for name, test in pairs(configTests) do
     end
 end
 
+log.info("Starte client, Rolle "..config.role)
+
 local redstoneStates = {}
 
 redstoneHasChanged = function()
