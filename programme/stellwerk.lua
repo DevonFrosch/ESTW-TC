@@ -175,7 +175,7 @@ local function pruefeWeichenstatusFuerGleis(gleis, gName)
         log.error("Weiche fuer Gleis "..gName.." nicht gefunden")
         return true
     end
-    return weiche.status == gleis.weiche[2]
+    return (weiche.status == 1) == (gleis.weiche[2] == 1)
 end
 local function neuzeichnen()
     -- Hintergrundbild
