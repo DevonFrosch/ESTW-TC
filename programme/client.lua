@@ -97,6 +97,9 @@ events.listen({
             log.info("----")
         end
     end,
+    onTimerEvent = function(eventData)
+        kommunikation.behandleTimer(eventData.id)
+    end,
 })
 
 kommunikation.deinit()

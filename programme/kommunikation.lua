@@ -37,6 +37,7 @@ splitString = function(inputstr)
     return tbl
 end
 setzteTimer = function(zeit, callback, ...)
+    log.debug("setzteTimer("..zeit..")")
     local id = os.startTimer(zeit)
     laufendeTimer[id] = {
         callback = callback,
@@ -53,6 +54,15 @@ behandleTimer = function(id)
     end
     timerData.callback(unpack(timerData.params))
     return true
+end
+local function send(id, message)
+    log.debug("SENDTO "..id..": "..(message or "nil"))
+    rednet.send(id, message, local_protocol)
+end
+local function sendHello(id)
+    local seed = math.random(0, 100)
+    send(id, "HELLO IAM " .. (local_role or SERVER) .. " " .. seed)
+    return seed
 end
 
 local function getMessage(packet, id)
@@ -86,14 +96,14 @@ rednetMessageReceivedServer = function(id, packet, onchange)
     local command = message[1]
     
     -- HELLO IAM <clientName>
-    if #message == 3 and command == "HELLO" and message[3] ~= ownName then
+    if #message >= 3 and command == "HELLO" and message[3] ~= ownName then
         clientIds[message[3]] = id
         clientNames[id] = message[3]
-        log.info("Neuer Client: id="..id..", name="..message[3])
+        log.info("Neuer Client: id="..id..", name="..message[3]..", seed="..(message[4] or "none"))
     end
     
     -- REDSTONE <side> <color> <ON|OFF>
-    if #message == 5 and command == "REDSTONE" then
+    if #message >= 5 and command == "REDSTONE" then
         local side, color, state = message[3], message[4], message[5]
         
         if tonumber(message[4]) == nil then
@@ -131,8 +141,7 @@ sendRestoneMessageServer = function(clientName, side, colorIndex, bit)
         message = message .. " OFF"
     end
     
-    log.debug("SENDTO "..clientName..": "..message)
-    rednet.send(clientIds[clientName], message, local_protocol)
+    send(clientIds[clientName], message)
 end
 sendRedstoneImpulseServer = function(clientName, side, colorIndex)
     sendRestoneMessageServer(clientName, side, colorIndex, true)
@@ -155,8 +164,7 @@ sendRedstoneChangeClient = function(side, index, bit)
     end
     
     if serverId ~= nil then
-        log.debug("SEND: "..message)
-        rednet.send(serverId, message, local_protocol)
+        send(serverId, message)
     end
 end
 rednetMessageReceivedClient = function(id, packet, onRegister, onChange)
@@ -169,18 +177,31 @@ rednetMessageReceivedClient = function(id, packet, onRegister, onChange)
     local command = message[1]
     
     -- HELLO IAM Server
-    if #message == 3 and command == "HELLO" and message[3] == SERVER then
+    if #message >= 3 and command == "HELLO" and message[3] == SERVER then
         serverId = id
-        log.info("Neuer Server: id="..serverId)
-        local msg = "HELLO IAM " .. local_role
-        rednet.send(serverId, msg, local_protocol)
+        local seed = sendHello(serverId)
+        log.info("Neuer Server: id="..serverId..", seed="..(message[4] or "none")..", antwortSeed="..seed)
         onRegister()
     end
     
     -- REDSTONE <side> <ON|OFF>
-    if #message == 5 and command == "REDSTONE" then
+    if #message >= 5 and command == "REDSTONE" then
         local side, color, state = message[3], tonumber(message[4]), message[5]
         onChange(side, color, state)
+    end
+end
+local function findeServer(versuche)
+    serverId = rednet.lookup(local_protocol, SERVER)
+    if serverId then
+        local seed = sendHello(serverId)
+        log.info("Server gefunden id=" .. serverId .. ", seed=" .. seed)
+        return true
+    else
+        log.warn("Kein Server gefunden, Client "..local_role)
+        if versuche > 0 then
+            setzteTimer(2, findeServer, versuche - 1)
+        end
+        return false
     end
 end
 
@@ -203,8 +224,8 @@ init = function(protocol, modem, role, logger)
         foundClients = {rednet.lookup(local_protocol)}
         if type(foundClients) == "table" then
             for i, foundClient in ipairs(foundClients) do
-                log.debug("Frage Client "..foundClient)
-                rednet.send(foundClient, "HELLO IAM "..ownName, local_protocol)
+                local seed = sendHello(foundClient)
+                log.debug("Frage Client "..foundClient..", seed="..seed)
             end
         else
             log.debug("Keine Clients gefunden")
@@ -212,21 +233,15 @@ init = function(protocol, modem, role, logger)
     else
         ownName = "Client "..role
         log.debug("Registriere "..ownName.." auf "..local_protocol)
-        rednet.host(local_protocol, ownName)
+        ---rednet.host(local_protocol, ownName)
 
-        serverId = rednet.lookup(local_protocol, SERVER)
-        if serverId then
-            log.info("Server gefunden id=" .. serverId)
-            rednet.send(serverId, "HELLO IAM " .. role, local_protocol)
-        else
-            log.warn("Kein Server gefunden, Client "..role)
-            return false
-        end
+        return findeServer(2)
     end
-    return true
 end
 deinit = function()
-    rednet.unhost(local_protocol, ownName)
+    if ownName == ownName then
+        rednet.unhost(local_protocol, ownName)
+    end
     rednet.close(local_modem)
 end
 
