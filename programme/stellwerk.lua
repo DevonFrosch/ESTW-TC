@@ -3,7 +3,6 @@ os.loadAPI("bin/tools")
 local projektierungsModus = false
 local log = tools.loadAPI("log.lua", "bin")
 log.start("server", "log", log.LEVEL_DEBUG)
-log.info("Starte Server")
 
 local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
 local bildschirm = tools.loadAPI("bildschirm.lua", "bin")
@@ -63,6 +62,8 @@ local SIGNAL_ERS = "ers"
 bildschirm.init(config.bildschirm)
 local hoehe = bildschirm.hoehe()
 
+log.info("Starte Server, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
+
 local fileHandle = fs.open(config.gleisbildDatei, "r")
 
 local gleisbild = {}
@@ -75,8 +76,6 @@ for i = 1, hoehe do
 end
 
 fileHandle.close()
-
-log.info("Startup, Bildschirm " .. bildschirm.breite() .. "x" .. hoehe)
 
 -- Stellbild
 local function zeichneSignal(signal, gross)
@@ -320,7 +319,7 @@ local function signalHaltfall(gleisName)
         return fehler("Keine Signale projektiert")
     end
     for sName, signal in pairs(signale) do
-        if type(signal.haltAbschnitte) == "table" then
+        if type(fahrstrasse.haltAbschnitte) == "table" then
             for haName, haltAbschnitt in ipairs(signal.haltAbschnitte) do
                 if gleisName == haltAbschnitt then
                     stelleSignal(sName, SIGNAL_HALT)
