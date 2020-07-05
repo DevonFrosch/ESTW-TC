@@ -31,9 +31,7 @@ Datentyp "Eingang": Table mit folgenden Werten:
 
 Datentyp "Position":
 - `x` Zahl: Position des Signals im Gleisbild auf der X-Achse, linkeste Spalte ist 1
-- `y`
-	
-	Zahl: Position des Signals im Gleisbild auf der Y-Achse, oberste Zeile ist 1
+- `y` Zahl: Position des Signals im Gleisbild auf der Y-Achse, oberste Zeile ist 1
 
 Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 
