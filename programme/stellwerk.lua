@@ -56,6 +56,7 @@ local SIGNAL_HALT = "halt"
 local SIGNAL_HP = "hp"
 local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
+local SIGNAL_ZA = "za"
 
 bildschirm.init(config.bildschirm)
 local hoehe = bildschirm.hoehe()
@@ -76,7 +77,7 @@ end
 fileHandle.close()
 
 -- Stellbild
-local function zeichneSignal(signal, gross)
+local function zeichneSignal(signal, art)
     local farbeOben = colors.red
     local farbeUnten = colors.red
     
@@ -88,19 +89,27 @@ local function zeichneSignal(signal, gross)
         farbeUnten = colors.yellow
     elseif signal.status == SIGNAL_ERS then
         farbeUnten = colors.yellow
+    elseif signal.status == SIGNAL_ZA then
+        farbeUnten = colors.orange
+        farbeOben = colors.orange
     end
 
     if signal.richtung == "r" then
-        if gross then
+        if art == "SIGNAL_ART_HP" then
             bildschirm.zeichneElement(signal, farbeUnten, "|")
             bildschirm.zeichneElement(signal, farbeOben, ">", 1)
-        else
+        elseif art == "SIGNAL_ART_SH" then
             bildschirm.zeichneElement(signal, farbeOben, ">")
+		elseif art == "SIGNAL_ART_ZA" then
+            bildschirm.zeichneElement(signal, farbeOben, ">")
+            bildschirm.zeichneElement(signal, farbeUnten, ">")
         end
     else
         bildschirm.zeichneElement(signal, farbeOben, "<")
-        if gross then
+        if art == "SIGNAL_ART_HP" then
             bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
+		elseif art == "SIGNAL_ART_ZA" then
+            bildschirm.zeichneElement(signal, farbeUnten, ">")
         end
     end
 end
@@ -205,9 +214,11 @@ local function neuzeichnen()
     if type(signale) == "table" then
         for sName, signal in pairs(signale) do
             if signal.hp ~= nil or signal.stelle_hp ~= nil then
-                zeichneSignal(signal, true)
+                zeichneSignal(signal, SIGNAL_ART_HP)
+			elseif signal.za ~= nil or signal.stelle_za ~= nil then then
+				zeichneSignal(signal, SIGNAL_ART_ZA)
             else
-                zeichneSignal(signal, false)
+                zeichneSignal(signal, SIGNAL_ART_SH)
             end
         end
     end
@@ -319,6 +330,7 @@ local function stelleSignal(name, signalbild, mitNachricht)
     else
         aktiviereSignalbild(signal, SIGNAL_HP, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
+        aktiviereSignalbild(signal, SIGNAL_ZA, false)
         aktiviereSignalbild(signal, SIGNAL_ERS, false)
         
         if signalbild ~= SIGNAL_HALT then
@@ -629,6 +641,7 @@ local function onRedstoneChange(pc, side, color, state)
         for sName, signal in pairs(signale) do
             pruefeAenderungSignalStellung(sName, (signal.hp  or signal.stelle_hp ), SIGNAL_HP,  pc, side, color, state)
             pruefeAenderungSignalStellung(sName, (signal.sh  or signal.stelle_sh ), SIGNAL_SH,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.za  or signal.stelle_za ), SIGNAL_ZA,  pc, side, color, state)
             pruefeAenderungSignalStellung(sName, (signal.ers or signal.stelle_ers), SIGNAL_ERS, pc, side, color, state)
         end
     end
