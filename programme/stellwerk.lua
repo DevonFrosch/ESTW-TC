@@ -100,7 +100,7 @@ local function zeichneSignal(signal, art)
             bildschirm.zeichneElement(signal, farbeOben, ">", 1)
         elseif art == "SIGNAL_ART_SH" then
             bildschirm.zeichneElement(signal, farbeOben, ">")
-		elseif art == "SIGNAL_ART_ZA" then
+        elseif art == "SIGNAL_ART_ZA" then
             bildschirm.zeichneElement(signal, farbeOben, ">")
             bildschirm.zeichneElement(signal, farbeUnten, ">")
         end
@@ -108,7 +108,7 @@ local function zeichneSignal(signal, art)
         bildschirm.zeichneElement(signal, farbeOben, "<")
         if art == "SIGNAL_ART_HP" then
             bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
-		elseif art == "SIGNAL_ART_ZA" then
+        elseif art == "SIGNAL_ART_ZA" then
             bildschirm.zeichneElement(signal, farbeUnten, ">")
         end
     end
@@ -215,8 +215,8 @@ local function neuzeichnen()
         for sName, signal in pairs(signale) do
             if signal.hp ~= nil or signal.stelle_hp ~= nil then
                 zeichneSignal(signal, SIGNAL_ART_HP)
-			elseif signal.za ~= nil or signal.stelle_za ~= nil then then
-				zeichneSignal(signal, SIGNAL_ART_ZA)
+            elseif signal.za ~= nil or signal.stelle_za ~= nil then then
+                zeichneSignal(signal, SIGNAL_ART_ZA)
             else
                 zeichneSignal(signal, SIGNAL_ART_SH)
             end
