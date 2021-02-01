@@ -135,3 +135,18 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 	String, erforderlich: Seite des Modems, einer aus {"top", "bottom", "left", "right", "front", "back"}
 - `speichereFahrstrassen`
 	Boolean: Ob Fahrstraßen über einen Reboot des Stellwerks hinweg gespeichert werden sollen, einer von {true, false}, default ist false
+
+### Client-Config
+
+Die Config für Client-Rechner heißt dort ebenfalls `config.lua` und ist ungleich simpler:
+
+- `stellwerkName`
+	String, erforderlich: Name des Stellwerks für die Kommunikation mit dem Server
+- `modem`
+	String, erforderlich: Seite des Modems, einer aus {"top", "bottom", "left", "right", "front", "back"}
+- `role`
+	String, erforderlich: Name des Clients, wird in der Server-Config als `pc` referenziert
+- `side`
+	Liste mit Keys aus {"top", "bottom", "left", "right", "front", "back"} und Wert `true`
+
+Im Beispiel unter stellwerke/Montabau liegt unter client.config.lua ein Beispiel, diese müsste aber in config.lua umbenannt werden.
