@@ -13,6 +13,7 @@ Folgende Konstanten sollten am Anfang der Config-Datei definiert werden:
 local SIGNAL_HP = "hp"
 local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
+local SIGNAL_ZA = "za"
 local WEICHE_GERADE = 0
 local WEICHE_ABZW = 1
 ```
@@ -41,6 +42,7 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 	Ein Klick schreibt den Namen des Signals in das Feld EIN und stellt ggf. eine Fahrstraße ein.
 	
 	Hat ein Signal entweder die Eigenschaft "hp" oder "stelle_hp", wird es als Hauptsignal angezeigt, sonst als Sperrsignal.
+	Hat ein Signal nur die Eigenschaft "stelle_za" oder "za", ist das Signal eine Zustimmungsabgabe an ein anderes Stellwerk, ohne ein Signal vor Ort zu stellen.
 	
 	"hp" und "stelle_hp" sollten nicht gleichezeitig verwendet werden, genauso wie "sh" und "stelle_sh".
 	- Name des Signals
@@ -51,12 +53,16 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 		Eingang: Solange an wird das Signal als grün (Fahrtbegriff) angezeigt
 		- `sh`
 		Eingang: Solange an wird das Signal als weiß (Rangierfahrtbegriff) angezeigt
+		- `za`
+		Eingang: Solange an wird das Signal als orange (Zustimmungsabgabe) angezeigt
 		- `stelle_hp`
 		Ausgang: Ist an, wenn das Signal einen Fahrtbegriff zeigen soll
 		- `stelle_sh`
 		Ausgang: Ist an, wenn das Signal einen Rangierfahrtbegriff zeigen soll
 		- `stelle_ers`
 		Ausgang: Ist an, wenn das Signal einen Ersatzsignalbegriff zeigen soll
+		- `stelle_za`
+		Ausgang: Ist an, wenn das Signal eine Zustimmungsabgabe ist
 		- `haltAbschnitte`
 		Liste von Strings: Namen von Haltabschnitten oder Gleisen. Beim Belegen einer der Abschnitte wird das Signal auf Halt gestellt
 		- `halt`
