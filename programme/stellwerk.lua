@@ -219,7 +219,7 @@ local function neuzeichnen()
         for sName, signal in pairs(signale) do
             if signal.hp ~= nil or signal.stelle_hp ~= nil then
                 zeichneSignal(signal, SIGNAL_ART_HP)
-            elseif signal.za ~= nil or signal.stelle_za ~= nil then then
+            elseif signal.za ~= nil or signal.stelle_za ~= nil then
                 zeichneSignal(signal, SIGNAL_ART_ZA)
             else
                 zeichneSignal(signal, SIGNAL_ART_SH)
