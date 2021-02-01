@@ -41,10 +41,11 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 	
 	Ein Klick schreibt den Namen des Signals in das Feld EIN und stellt ggf. eine Fahrstraße ein.
 	
-	Hat ein Signal entweder die Eigenschaft "hp" oder "stelle_hp", wird es als Hauptsignal angezeigt, sonst als Sperrsignal.
-	Hat ein Signal nur die Eigenschaft "stelle_za" oder "za", ist das Signal eine Zustimmungsabgabe an ein anderes Stellwerk, ohne ein Signal vor Ort zu stellen.
+	Hat ein Signal entweder die Eigenschaft "hp" oder "stelle_hp", wird es als Hauptsignal angezeigt.
+	Hat ein Signal entweder die Eigenschaft "stelle_za" oder "za", ist das Signal eine Zustimmungsabgabe an ein anderes Stellwerk, ohne ein Signal vor Ort zu stellen.
+	In allen anderen Fällen wird ein Sperrsignal angezeigt.
 	
-	"hp" und "stelle_hp" sollten nicht gleichezeitig verwendet werden, genauso wie "sh" und "stelle_sh".
+	"hp" und "stelle_hp" sollten nicht gleichezeitig verwendet werden, genauso wie "sh" und "stelle_sh" sowie "za" und "stelle_za".
 	- Name des Signals
 		- Position: Positionierung auf dem Gleisbild
 		- `richtung`
