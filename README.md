@@ -123,7 +123,7 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 		- `signale`
 			Signale, die einen Signalbegriff anzeigen sollen, wenn die Fahrstraße eingestellt ist. Wird die Fahrstraße aufgelöst, werden alle Signale der Fahrstraße auf Halt gestellt.
 			- Name des Signals:
-				String, einer aus {SIGNAL_HP, SIGNAL_SH, SIGNAL_ERS}
+				String, einer aus {SIGNAL_HP, SIGNAL_SH, SIGNAL_ERS, SIGNAL_ZA}
 		- `haltAbschnitte`
 			Liste von Strings: Namen von Gleisen, wenn diese belegt werden, werden alle Signale der Fahrstraße auf Halt gestellt
 		- `aufloeseAbschn`
