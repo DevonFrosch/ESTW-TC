@@ -58,6 +58,10 @@ local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
 local SIGNAL_ZA = "za"
 
+local SIGNAL_ART_HP = "hp"
+local SIGNAL_ART_SH = "sh"
+local SIGNAL_ART_ZA = "za"
+
 bildschirm.init(config.bildschirm)
 local hoehe = bildschirm.hoehe()
 
@@ -95,21 +99,21 @@ local function zeichneSignal(signal, art)
     end
 
     if signal.richtung == "r" then
-        if art == "SIGNAL_ART_HP" then
+        if art == SIGNAL_ART_HP then
             bildschirm.zeichneElement(signal, farbeUnten, "|")
             bildschirm.zeichneElement(signal, farbeOben, ">", 1)
-        elseif art == "SIGNAL_ART_SH" then
+        elseif art == SIGNAL_ART_SH then
             bildschirm.zeichneElement(signal, farbeOben, ">")
-        elseif art == "SIGNAL_ART_ZA" then
+        elseif art == SIGNAL_ART_ZA then
             bildschirm.zeichneElement(signal, farbeOben, ">")
-            bildschirm.zeichneElement(signal, farbeUnten, ">")
+            bildschirm.zeichneElement(signal, farbeUnten, ">", 1)
         end
     else
         bildschirm.zeichneElement(signal, farbeOben, "<")
-        if art == "SIGNAL_ART_HP" then
+        if art == SIGNAL_ART_HP then
             bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
-        elseif art == "SIGNAL_ART_ZA" then
-            bildschirm.zeichneElement(signal, farbeUnten, ">")
+        elseif art == SIGNAL_ART_ZA then
+            bildschirm.zeichneElement(signal, farbeUnten, "<", 1)
         end
     end
 end
