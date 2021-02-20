@@ -1,4 +1,6 @@
-local path = nil
+local local_path = nil
+local local_logName = nil
+local local_folder = nil
 local loglevel = LEVEL_NONE
 local maxRotate = 10
 
@@ -7,6 +9,13 @@ LEVEL_ERROR = 1
 LEVEL_WARN = 2
 LEVEL_INFO = 3
 LEVEL_DEBUG = 4
+
+local levelTransl = {
+    [LEVEL_ERROR] = "FEHLER: ",
+    [LEVEL_WARN] = "WARNUNG: ",
+    [LEVEL_INFO] = "INFO: ",
+    [LEVEL_DEBUG] = "DEBUG: ",
+}
 
 local function dump(o)
     if type(o) ~= 'table' then
@@ -27,7 +36,7 @@ local function dump(o)
     return s .. '}'
 end
 
-local function getPfad(logName, ordner, index)
+local function getPath(logName, folder, index)
     local pfad = logName
     
     if index ~= nil then
@@ -36,13 +45,14 @@ local function getPfad(logName, ordner, index)
     
     pfad = pfad .. ".log"
     
-    if ordner ~= nil then
-        pfad = ordner .. "/" .. pfad
+    if folder ~= nil then
+        pfad = folder .. "/" .. pfad
     end
     return pfad
 end
-local function rotate(logName, ordner, index)
-    local pfadAlt = getPfad(logName, ordner, index)
+
+local function rotate(logName, folder, index)
+    local pfadAlt = getPath(logName, folder, index)
     if not fs.exists(pfadAlt) then
         return pfadAlt
     end
@@ -54,12 +64,27 @@ local function rotate(logName, ordner, index)
         return pfadAlt
     end
     
-    local pfadNeu = rotate(logName, ordner, index + 1)
+    local pfadNeu = rotate(logName, folder, index + 1)
     fs.move(pfadAlt, pfadNeu)
     
     return pfadAlt
 end
-local function schreibe(level, text, objects)
+
+local function initFile(logName, folder)
+    if logName ~= nil then
+        local_logName = logName
+    end
+    if folder ~= nil then
+        local_folder = folder
+    end
+    if local_folder ~= nil and not fs.isDir(local_folder) then
+        fs.makeDir(local_folder)
+    end
+    
+    local_path = rotate(local_logName, local_folder)
+end
+
+local function writeLog(level, text, objects)
     if loglevel < level then
         return
     end
@@ -74,20 +99,27 @@ local function schreibe(level, text, objects)
         printText = printText:gsub("ß", "ss")
         print(printText)
     end
-    if path == nil then
+    if local_path == nil then
+        print("log.lua: Path not set, did you forget start()?")
         return
     end
     
     local timeStamp = "[" .. os.day() .. " " .. os.time() .. "] "
-    local levelTransl = {
-        [LEVEL_ERROR] = "FEHLER: ",
-        [LEVEL_WARN] = "WARNUNG: ",
-        [LEVEL_INFO] = "INFO: ",
-        [LEVEL_DEBUG] = "DEBUG: ",
-    }
+    local translLevel = levelTransl[level] or ""
+    local line = timeStamp .. translLevel .. text
     
-    local datei = fs.open(path, "a")
-    datei.writeLine(timeStamp .. (levelTransl[level] or "") .. text)
+    if not fs.exists(local_path) 
+        -- reinit if file was moved/deleted/etc
+        init()
+    end
+    
+    local datei = fs.open(local_path, "a")
+    if datei == nil then
+        print("log.lua: Cannot open file "..local_path)
+        return
+    end
+    
+    datei.writeLine(line)
     
     if objects ~= nil then
         for i, object in ipairs(objects) do
@@ -98,24 +130,24 @@ local function schreibe(level, text, objects)
     datei.close()
 end
 
-start = function(logName, ordner, level)
-    if ordner ~= nil and not fs.isDir(ordner) then
-        fs.makeDir(ordner)
+start = function(logName, folder, level)
+    if folder ~= nil and not fs.isDir(folder) then
+        fs.makeDir(folder)
     end
     
-    path = rotate(logName, ordner, nil)
+    local_path = rotate(logName, folder, nil)
     loglevel = (level or "info")
 end
 
 error = function(text, ...)
-    schreibe(LEVEL_ERROR, tostring(text), arg)
+    writeLog(LEVEL_ERROR, tostring(text), arg)
 end
 warn = function(text, ...)
-    schreibe(LEVEL_WARN, tostring(text), arg)
+    writeLog(LEVEL_WARN, tostring(text), arg)
 end
 info = function(text, ...)
-    schreibe(LEVEL_INFO, tostring(text), arg)
+    writeLog(LEVEL_INFO, tostring(text), arg)
 end
 debug = function(text, ...)
-    schreibe(LEVEL_DEBUG, tostring(text), arg)
+    writeLog(LEVEL_DEBUG, tostring(text), arg)
 end
