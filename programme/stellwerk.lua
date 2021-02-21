@@ -693,6 +693,12 @@ local function onRedstoneChange(pc, side, color, state)
                 else
                     fahrstrasse.status = 0
                 end
+            elseif fahrstrasse.ausloeser and tostring(fahrstrasse.ausloeser.pc) == tostring(pc) and tostring(fahrstrasse.ausloeser.au) == side
+                    and fahrstrasse.ausloeser.fb == color then
+                log.debug("onRedstoneChange: Fahrstrassentrigger " .. fName .. " " .. state)
+                if state == "ON" then
+                    stelleFahrstrasse(fName, false, false)
+                end            
             end
         end
     end
