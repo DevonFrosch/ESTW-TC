@@ -114,7 +114,7 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 			Liste von Strings: Namen von Fahrstraßenteilen oder Gleisen, die gefärbt werden sollen, wenn die Fahrstraße eingestellt ist
 		- `melder`
 			Eingang: Solange an, wird die Fahrstraße als eingestellt angezeigt
-		- `azslöser`
+		- `auslöser`
 			Eingang: Impuls, wenn die Fahrstraße eingestellt werden soll
 		- `steller`
 			Ausgang: Impuls, wenn die Fahrstraße eingestellt werden soll
