@@ -643,10 +643,10 @@ local function onRedstoneChange(pc, side, color, state)
     -- Signale
     if type(signale) == "table" then
         for sName, signal in pairs(signale) do
-            pruefeAenderungSignalStellung(sName, signal.hp,  SIGNAL_HP,  pc, side, color, state)
-            pruefeAenderungSignalStellung(sName, signal.sh,  SIGNAL_SH,  pc, side, color, state)
-            pruefeAenderungSignalStellung(sName, signal.za,  SIGNAL_ZA,  pc, side, color, state)
-            pruefeAenderungSignalStellung(sName, signal.ers, SIGNAL_ERS, pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.hp  or signal.stelle_hp ), SIGNAL_HP,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.sh  or signal.stelle_sh ), SIGNAL_SH,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.za  or signal.stelle_za ), SIGNAL_ZA,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.ers or signal.stelle_ers), SIGNAL_ERS, pc, side, color, state)
         end
     end
     
