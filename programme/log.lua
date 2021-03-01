@@ -74,6 +74,9 @@ local function initFile(logName, folder)
     if logName ~= nil then
         local_logName = logName
     end
+    if local_logName == nil then
+        print("log.lua: Tried to (re)init but no logName set")
+    end
     if folder ~= nil then
         local_folder = folder
     end
@@ -108,9 +111,9 @@ local function writeLog(level, text, objects)
     local translLevel = levelTransl[level] or ""
     local line = timeStamp .. translLevel .. text
     
-    if not fs.exists(local_path) 
+    if not fs.exists(local_path) then
         -- reinit if file was moved/deleted/etc
-        init()
+        initFile()
     end
     
     local datei = fs.open(local_path, "a")
@@ -131,11 +134,7 @@ local function writeLog(level, text, objects)
 end
 
 start = function(logName, folder, level)
-    if folder ~= nil and not fs.isDir(folder) then
-        fs.makeDir(folder)
-    end
-    
-    local_path = rotate(logName, folder, nil)
+    initFile(logName, folder)
     loglevel = (level or "info")
 end
 
