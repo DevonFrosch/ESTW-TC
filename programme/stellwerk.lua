@@ -694,6 +694,13 @@ local function onRedstoneChange(pc, side, color, state)
                     fahrstrasse.status = 0
                 end
             end
+            if fahrstrasse.anstoss and tostring(fahrstrasse.anstoss.pc) == tostring(pc) and tostring(fahrstrasse.anstoss.au) == side
+                    and fahrstrasse.anstoss.fb == color then
+                if state == "ON" then
+                    log.debug("onRedstoneChange: Fahrstrassenanstoss "..fName)
+                    stelleFahrstrasse(fName)
+                end
+            end
         end
     end
     
