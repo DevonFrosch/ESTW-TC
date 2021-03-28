@@ -1,3 +1,8 @@
+-- Disclaimer: Diese Konfiguration stellt einen sehr alten Stand des Programms dar
+-- und ist nur zur Dokumentation der hp/sh-Keys vorhanden.
+-- Diese Config wird so nicht vom aktuellen Programm erkannt werden
+-----------------------------------------------------------------------
+
 -- Status: 0 = Halt, 1 = Fahrt, 2 = Rangierfahrt
 -- Richtung: r = nach rechts, l = nach links
 signale = {
