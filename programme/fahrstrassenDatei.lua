@@ -1,6 +1,6 @@
 local dateiname = "fahrstrassen.tmp"
 
-leseFahrstrassen = function()
+local leseFahrstrassen = function()
     if not fs.exists(dateiname) then
         return {}
     end
@@ -18,7 +18,7 @@ leseFahrstrassen = function()
     return fsArray
 end
 
-findeFahrstrasse = function(name)
+local findeFahrstrasse = function(name)
     if not fs.exists(dateiname) then
         return {}
     end
@@ -36,7 +36,7 @@ findeFahrstrasse = function(name)
     return false
 end
 
-speichereFahrstrasse = function(name)
+local speichereFahrstrasse = function(name)
     if findeFahrstrasse(name) then
         return
     end
@@ -46,7 +46,7 @@ speichereFahrstrasse = function(name)
     datei.close()
 end
 
-loescheFahrstrasse = function(name)
+local loescheFahrstrasse = function(name)
     local fahrstrassen = leseFahrstrassen()
     local datei = fs.open(dateiname, "w")
     for i, fahrstrasse in ipairs(fahrstrassen) do
@@ -57,8 +57,16 @@ loescheFahrstrasse = function(name)
     datei.close()
 end
 
-leereDatei = function()
+local leereDatei = function()
     local datei = fs.open(dateiname, "w")
     datei.write("")
     datei.close()
 end
+
+return {
+    leseFahrstrassen = leseFahrstrassen,
+    findeFahrstrasse = findeFahrstrasse,
+    speichereFahrstrasse = speichereFahrstrasse,
+    loescheFahrstrasse = loescheFahrstrasse,
+    leereDatei = leereDatei,
+}

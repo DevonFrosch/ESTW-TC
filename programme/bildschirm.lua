@@ -1,12 +1,12 @@
 local monitor = nil
 
-init = function(seite)
+local function init(seite)
     monitor = peripheral.wrap(seite)
     monitor.clear()
     monitor.setCursorPos(1,1)
 end
 
-hoehe = function()
+local function hoehe()
     if monitor == nil then
         print("Monitor ist nicht initialisiert")
         return
@@ -14,7 +14,7 @@ hoehe = function()
     local w, h = monitor.getSize()
     return h
 end
-breite = function()
+local function breite()
     if monitor == nil then
         print("Monitor ist nicht initialisiert")
         return
@@ -23,7 +23,7 @@ breite = function()
     return w
 end
 
-leeren = function()
+local function leeren()
     if monitor == nil then
         print("Monitor ist nicht initialisiert")
         return
@@ -31,7 +31,7 @@ leeren = function()
     monitor.clear()
 end
 
-zeichne = function(x, y, farbe, text)
+local function zeichne(x, y, farbe, text)
     if monitor == nil then
         print("Monitor ist nicht initialisiert")
         return
@@ -57,7 +57,7 @@ zeichne = function(x, y, farbe, text)
     monitor.write(text)
 end
 
-zeichneElement = function(position, farbe, text, offsetX, offsetY)
+local function zeichneElement(position, farbe, text, offsetX, offsetY)
     if offsetX == nil then
         offsetX = 0
     end
@@ -66,3 +66,12 @@ zeichneElement = function(position, farbe, text, offsetX, offsetY)
     end
     zeichne(position.x + offsetX, position.y + offsetY, farbe, text)
 end
+
+return {
+    init = init,
+    hoehe = hoehe,
+    breite = breite,
+    leeren = leeren,
+    zeichne = zeichne,
+    zeichneElement = zeichneElement,
+}

@@ -133,20 +133,34 @@ local function writeLog(level, text, objects)
     datei.close()
 end
 
-start = function(logName, folder, level)
+local function start(logName, folder, level)
     initFile(logName, folder)
     loglevel = (level or "info")
 end
 
-error = function(text, ...)
+local function error(text, ...)
     writeLog(LEVEL_ERROR, tostring(text), arg)
 end
-warn = function(text, ...)
+local function warn(text, ...)
     writeLog(LEVEL_WARN, tostring(text), arg)
 end
-info = function(text, ...)
+local function info(text, ...)
     writeLog(LEVEL_INFO, tostring(text), arg)
 end
-debug = function(text, ...)
+local function debug(text, ...)
     writeLog(LEVEL_DEBUG, tostring(text), arg)
 end
+
+return {
+    LEVEL_NONE = LEVEL_NONE,
+    LEVEL_ERROR = LEVEL_ERROR,
+    LEVEL_WARN = LEVEL_WARN,
+    LEVEL_INFO = LEVEL_INFO,
+    LEVEL_DEBUG = LEVEL_DEBUG,
+    
+    start = start,
+    error = error,
+    warn = warn,
+    info = info,
+    debug = debug,
+}

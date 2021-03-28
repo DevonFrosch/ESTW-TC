@@ -38,7 +38,7 @@ local function listenForRedstoneChange()
     }
 end
 
-listen = function(handlers)
+local function listen(handlers)
     repeat
         local eventNumber = parallel.waitForAny(
             listenForCharPressed,
@@ -69,3 +69,7 @@ listen = function(handlers)
         end
     until eventNumber == 1 and eventData.char == "x"
 end
+
+return {
+    listen = listen,
+}
