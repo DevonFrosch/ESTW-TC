@@ -2,11 +2,34 @@
 
 Ein elektronisches Stellwerk für den Minecraft-Mod [ComputerCraft](https://www.computercraft.info/).
 
-#### Aufbau Config-Datei
+
+##### Stellwerk-Rechners
+
+Der typische Aufbau eines Stellwerk-Rechners (Server, der mit dem Bildschirm) ist wie folgt:
+- bin
+	- stellwerk.lua
+	- log.lua
+	- ...
+- log (Ordner wird automatisch erstellt)
+- config.lua
+- fahrstrassen.tmp (Datei wird automatisch erstellt, wenn speichereFahrstrassen aktiviert ist)
+- gleisbild.txt
+- startup
+
+#### Aufbau startup
+
+Durch die Erstellung einer Datei namens startup wird das ESTW gestartet, sobald der Computer startet (insb. wenn der Chunk wieder geladen wird, weil ein Spieler in die Nähe kommt).
+```lua
+shell.run("bin/stellwerk.lua")
+```
+
+#### Aufbau gleisbild.txt
+
+Hier kommt das Gleisbild (Hintergrundbild) als reiner Text hinein. Backslashes \ brauchen nicht verdoppelt werden. Bitte daran denken, dass die untersten 3 Zeilen von der ESTW-Software benötigt werden
+
+#### Aufbau config.lua
 
 Die Projektierung des Stellwerks (Konfiguration der Anzeige, Ein-/Ausgänge etc.) erfolgt über eine Config-Datei im Lua-Format.
-
-### Stellwerks-Config
 
 Folgende Konstanten sollten am Anfang der Config-Datei definiert werden:
 ``` lua
@@ -145,17 +168,43 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 - `speichereFahrstrassen`
 	Boolean: Ob Fahrstraßen über einen Reboot des Stellwerks hinweg gespeichert werden sollen, einer von {true, false}, default ist false
 
-### Client-Config
+##### Client-Rechner
 
-Die Config für Client-Rechner heißt dort ebenfalls `config.lua` und ist ungleich simpler:
+Der typische Aufbau eines Client-Rechners (der mit dem Bildschirm) ist wie folgt:
+- bin
+	- client.lua
+	- log.lua
+	- ...
+- log (Ordner wird automatisch erstellt)
+- config.lua
+- startup
+
+#### Aufbau startup
+
+Durch die Erstellung einer Datei namens startup wird das ESTW gestartet, sobald der Computer startet (insb. wenn der Chunk wieder geladen wird, weil ein Spieler in die Nähe kommt).
+```lua
+shell.run("bin/client.lua")
+```
+
+#### Aufbau config.lua
+
+Die Projektierung des Stellwerks (Konfiguration der Anzeige, Ein-/Ausgänge etc.) erfolgt über eine Config-Datei im Lua-Format.
+
+Folgende Variablen können gesetzt werden:
 
 - `stellwerkName`
 	String, erforderlich: Name des Stellwerks für die Kommunikation mit dem Server
+- `role`
+	String, erforderlich: Kennung des Clients innerhalb des Stellwerks, wird in der Server-Config als `pc` referenziert
 - `modem`
 	String, erforderlich: Seite des Modems, einer aus {"top", "bottom", "left", "right", "front", "back"}
-- `role`
-	String, erforderlich: Name des Clients, wird in der Server-Config als `pc` referenziert
-- `side`
-	Liste mit Keys aus {"top", "bottom", "left", "right", "front", "back"} und Wert `true`
-
-Im Beispiel unter stellwerke/Montabau liegt unter client.config.lua ein Beispiel, diese müsste aber in config.lua umbenannt werden.
+- `sides`
+	Table mit den Seiten, an denen die Bundeled Redstone-Kabel angeschlossen sind.
+	Pro Eintrag ist der Schlüssel einer aus {"top", "bottom", "left", "right", "front", "back"}, der Wert ist immer `true`.
+	
+	Beispiel:
+	```lua
+	sides = {
+		right = true,
+	}
+	```
