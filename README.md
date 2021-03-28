@@ -1,8 +1,8 @@
-###### ESTW-TC
+# ESTW-TC
 
 Ein elektronisches Stellwerk für den Minecraft-Mod [ComputerCraft](https://www.computercraft.info/) (und langfristig [OpenComputers](https://ocdoc.cil.li/).
 
-##### Anpassung erforderlich
+## Anpassung erforderlich
 
 Anfang April 2021 wurde der Mechanismus zum Laden der Config-Dateien geändert, damit der Mod langfristig auch OpenComputers unterstützen kann. Es müssen hierfür alle Config-Dateien angepasst werden:
 
@@ -15,7 +15,7 @@ Zu besseren Übersicht kann man den Bereich zwischen `return {` und `}` noch um 
 
 Die Config-Dateien in diesem Repository unter `stellwerke` sind bereits angepasst (bis auf die von Lyndern, welche eh komplett veraltet ist).
 
-##### Stellwerk-Rechners
+## Stellwerk-Rechners
 
 Der typische Aufbau eines Stellwerk-Rechners (Server, der mit dem Bildschirm) ist wie folgt:
 - bin
@@ -28,18 +28,18 @@ Der typische Aufbau eines Stellwerk-Rechners (Server, der mit dem Bildschirm) is
 - gleisbild.txt
 - startup
 
-#### Aufbau startup
+### Aufbau startup
 
 Durch die Erstellung einer Datei namens startup wird das ESTW gestartet, sobald der Computer startet (insb. wenn der Chunk wieder geladen wird, weil ein Spieler in die Nähe kommt).
 ```lua
 shell.run("bin/stellwerk.lua")
 ```
 
-#### Aufbau gleisbild.txt
+### Aufbau gleisbild.txt
 
 Hier kommt das Gleisbild (Hintergrundbild) als reiner Text hinein. Backslashes \ brauchen nicht verdoppelt werden. Bitte daran denken, dass die untersten 3 Zeilen von der ESTW-Software benötigt werden
 
-#### Aufbau config.lua
+### Aufbau config.lua
 
 Die Projektierung des Stellwerks (Konfiguration der Anzeige, Ein-/Ausgänge etc.) erfolgt über eine Config-Datei im Lua-Format.
 
@@ -180,7 +180,7 @@ Die Reihenfolge der benannten Schlüssel kann beliebig geändert werden.
 - `speichereFahrstrassen`
 	Boolean: Ob Fahrstraßen über einen Reboot des Stellwerks hinweg gespeichert werden sollen, einer von {true, false}, default ist false
 
-##### Client-Rechner
+## Client-Rechner
 
 Der typische Aufbau eines Client-Rechners (der mit dem Bildschirm) ist wie folgt:
 - bin
@@ -191,14 +191,14 @@ Der typische Aufbau eines Client-Rechners (der mit dem Bildschirm) ist wie folgt
 - config.lua
 - startup
 
-#### Aufbau startup
+### Aufbau startup
 
 Durch die Erstellung einer Datei namens startup wird das ESTW gestartet, sobald der Computer startet (insb. wenn der Chunk wieder geladen wird, weil ein Spieler in die Nähe kommt).
 ```lua
 shell.run("bin/client.lua")
 ```
 
-#### Aufbau config.lua
+### Aufbau config.lua
 
 Die Projektierung des Stellwerks (Konfiguration der Anzeige, Ein-/Ausgänge etc.) erfolgt über eine Config-Datei im Lua-Format.
 
