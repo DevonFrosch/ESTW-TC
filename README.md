@@ -1,7 +1,19 @@
 ###### ESTW-TC
 
-Ein elektronisches Stellwerk für den Minecraft-Mod [ComputerCraft](https://www.computercraft.info/).
+Ein elektronisches Stellwerk für den Minecraft-Mod [ComputerCraft](https://www.computercraft.info/) (und langfristig [OpenComputers](https://ocdoc.cil.li/).
 
+##### Anpassung erforderlich
+
+Anfang April 2021 wurde der Mechanismus zum Laden der Config-Dateien geändert, damit der Mod langfristig auch OpenComputers unterstützen kann. Es müssen hierfür alle Config-Dateien angepasst werden:
+
+- Alle Zeilen mit `local` am Anfang bleiben unberührt
+- Danach muss ein `return {` eingefügt werden
+- Am Ende jeder Konfiguration (z.B. `signale`, `gleise`, `stellwerkName`, `speichereFahrstrassen`, ...) muss ein Komma `,` eingefügt werden
+- Am Ende der Datei muss ein `}` eingefügt werden
+
+Zu besseren Übersicht kann man den Bereich zwischen `return {` und `}` noch um eine Ebene einrücken.
+
+Die Config-Dateien in diesem Repository unter `stellwerke` sind bereits angepasst (bis auf die von Lyndern, welche eh komplett veraltet ist).
 
 ##### Stellwerk-Rechners
 
