@@ -11,7 +11,26 @@ Anfang April 2021 wurde der Mechanismus zum Laden der Config-Dateien geändert, 
 - Am Ende jeder Konfiguration (z.B. `signale`, `gleise`, `stellwerkName`, `speichereFahrstrassen`, ...) muss ein Komma `,` eingefügt werden
 - Am Ende der Datei muss ein `}` eingefügt werden
 
-Zu besseren Übersicht kann man den Bereich zwischen `return {` und `}` noch um eine Ebene einrücken.
+Zu besseren Übersicht kann man den Bereich zwischen `return {` und `}` noch um eine Ebene einrücken. Das sollte dann hinterher in etwa so aussehen:
+
+```lua
+local SIGNAL_HP = "hp"
+local SIGNAL_SH = "sh"
+local SIGNAL_ERS = "ers"
+
+return {
+    gleisbildDatei = "gleisbild.txt",
+    stellwerkName = "Test",
+    -- usw...
+
+    signale = {
+        ["A"]     = {x = 09,  y = 05, richtung = "r",
+	},
+	fahrstrassen = {
+	-- usw...
+	},
+}
+```
 
 Die Config-Dateien in diesem Repository unter `stellwerke` sind bereits angepasst (bis auf die von Lyndern, welche eh komplett veraltet ist).
 
