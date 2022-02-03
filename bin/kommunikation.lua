@@ -18,12 +18,26 @@ local log = {
     debug = function() end,
 }
 
-if not tools then
-    os.loadAPI("bin/tools")
-end
-
 -- Hilfsfunktionen
-splitString = function(inputstr)
+local function dump(o)
+    if type(o) ~= 'table' then
+        return tostring(o)
+    end
+    
+    local s = '{'
+    for k,v in pairs(o) do
+        if type(k) ~= 'number' then
+            k = '"'..k..'"'
+        end
+        s = s .. '['..k..']=' .. dump(v) .. ','
+    end
+    -- letztes Komma entfernen
+    if s:len() >= 1 then
+        s = s:sub(0, s:len() - 1)
+    end
+    return s .. '}'
+end
+local function splitString(inputstr)
     if inputstr == nil then
         return nil
     end
@@ -36,7 +50,7 @@ splitString = function(inputstr)
     end
     return tbl
 end
-setzteTimer = function(zeit, callback, ...)
+local function setzteTimer(zeit, callback, ...)
     log.debug("setzteTimer("..zeit..")")
     local id = os.startTimer(zeit)
     laufendeTimer[id] = {
@@ -44,7 +58,7 @@ setzteTimer = function(zeit, callback, ...)
         params = arg,
     }
 end
-behandleTimer = function(id)
+local function behandleTimer(id)
     local timerData = laufendeTimer[id]
     if timerData == nil then
         return false
@@ -86,7 +100,7 @@ local function getMessage(packet, id)
 end
 
 -- Server-Funktionen
-rednetMessageReceivedServer = function(id, packet, onchange)
+local function rednetMessageReceivedServer(id, packet, onchange)
     local message = getMessage(packet, id)
     
     if message == nil then
@@ -123,7 +137,7 @@ rednetMessageReceivedServer = function(id, packet, onchange)
     
     return true
 end
-sendRestoneMessageServer = function(clientName, side, colorIndex, bit)
+local function sendRestoneMessageServer(clientName, side, colorIndex, bit)
     local index = 2 ^ colorIndex
     clientName = tostring(clientName)
     if clientIds[clientName] == nil then
@@ -143,7 +157,7 @@ sendRestoneMessageServer = function(clientName, side, colorIndex, bit)
     
     send(clientIds[clientName], message)
 end
-sendRedstoneImpulseServer = function(clientName, side, colorIndex)
+local function sendRedstoneImpulseServer(clientName, side, colorIndex)
     sendRestoneMessageServer(clientName, side, colorIndex, true)
     local resetRedstone = function(clientName, side, colorIndex)
         sendRestoneMessageServer(clientName, side, colorIndex, false)
@@ -152,7 +166,7 @@ sendRedstoneImpulseServer = function(clientName, side, colorIndex)
 end
 
 -- Client-Funktionen
-sendRedstoneChangeClient = function(side, index, bit)
+local function sendRedstoneChangeClient(side, index, bit)
     local message = "REDSTONE " .. local_role .. " " .. side
     
     message = message .. " " .. index
@@ -167,7 +181,7 @@ sendRedstoneChangeClient = function(side, index, bit)
         send(serverId, message)
     end
 end
-rednetMessageReceivedClient = function(id, packet, onRegister, onChange)
+local function rednetMessageReceivedClient(id, packet, onRegister, onChange)
     local message = getMessage(packet, id)
     
     if message == nil then
@@ -205,7 +219,7 @@ local function findeServer(versuche)
     end
 end
 
-init = function(protocol, modem, role, logger)
+local function init(protocol, modem, role, logger)
     log = logger
     
     local_protocol = protocol .. " v" .. version
@@ -238,16 +252,32 @@ init = function(protocol, modem, role, logger)
         return findeServer(2)
     end
 end
-deinit = function()
+local function deinit()
     if ownName == ownName then
         rednet.unhost(local_protocol, ownName)
     end
     rednet.close(local_modem)
 end
 
-getProtocol = function()
+local function getProtocol()
     return local_protocol
 end
-getServerId = function()
+local function getServerId()
     return serverId
 end
+
+
+return {
+    rednetMessageReceivedServer = rednetMessageReceivedServer,
+    sendRestoneMessageServer = sendRestoneMessageServer,
+    sendRedstoneImpulseServer = sendRedstoneImpulseServer,
+    
+    sendRedstoneChangeClient = sendRedstoneChangeClient,
+    rednetMessageReceivedClient = rednetMessageReceivedClient,
+    
+    init = init,
+    deinit = deinit,
+    
+    getProtocol = getProtocol,
+    getServerId = getServerId,
+}

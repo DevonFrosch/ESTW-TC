@@ -1,13 +1,58 @@
-os.loadAPI("bin/tools")
+function loadAPI(filename, folder)
+    local fileExists = function(path)
+        local f = io.open(path, "r")
+        if f == nil then
+            return false
+        end
+        f.close(f)
+        return true
+    end
+    
+    if filename:sub(-4) == ".lua" then
+        filename = filename:sub(1,-5)
+    end
+    if folder == nil then
+        folder = ""
+    elseif folder:sub(-1) ~= "/" then
+        folder = folder .. "/"
+    end
+    
+    if os.loadAPI ~= nil then
+        -- ComputerCraft
+        local path = folder..filename..".lua"
+        if fileExists(folder.."cc/"..filename..".lua") then
+            path = folder.."cc/"..filename..".lua"
+        end
+        local file, err = loadfile(path)
+        if file == nil then
+            print("Failed loading api "..folder..filename.."!")
+            return nil
+        end
+        return file()
+    else
+        -- OpenComputers
+        local path = folder..filename
+        if fileExists(folder.."oc/"..filename..".lua") then
+            path = folder.."oc/"..filename
+        end
+        local result = require(path)
+        if result == nil then
+            print("Failed loading api "..folder..filename.."!")
+            return nil
+        end
+        return result
+    end
+end
 
-local log = tools.loadAPI("log.lua", "bin")
+local tools = loadAPI("tools", "bin")
+local log = loadAPI("log", "bin")
 log.start("client", "log", log.LEVEL_DEBUG)
 
-local kommunikation = tools.loadAPI("kommunikation.lua", "bin")
-local events = tools.loadAPI("events.lua", "bin")
+local kommunikation = loadAPI("kommunikation", "bin")
+local events = loadAPI("events", "bin")
 
 -- load configuration
-local config = tools.loadAPI("config.lua")
+local config = loadAPI("config")
 
 -- test config
 local configTests = {
