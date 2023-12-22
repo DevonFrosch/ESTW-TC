@@ -118,9 +118,7 @@ local function zeichneSignal(signal, art)
         end
     else
         bildschirm.zeichneElement(signal, farbeOben, "<")
-        if art == SIGNAL_ART_HP then
-            bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
-        elseif art == SIGNAL_ART_HPA then
+        if art == SIGNAL_ART_HP or art == SIGNAL_ART_HPA then
             bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
         elseif art == SIGNAL_ART_ZA then
             bildschirm.zeichneElement(signal, farbeUnten, "<", 1)
