@@ -91,7 +91,7 @@ local function zeichneSignal(signal, art)
         farbeOben = colors.lime
         farbeUnten = colors.lime
     elseif signal.status == SIGNAL_HPA then
-        farbeOben = colors.yellow
+        farbeOben = colors.lime
         farbeUnten = colors.lime
     elseif signal.status == SIGNAL_SH then
         farbeOben = colors.yellow
