@@ -104,10 +104,7 @@ local function zeichneSignal(signal, art)
     end
 
     if signal.richtung == "r" then
-        if art == SIGNAL_ART_HP then
-            bildschirm.zeichneElement(signal, farbeUnten, "|")
-            bildschirm.zeichneElement(signal, farbeOben, ">", 1)
-        elseif art == SIGNAL_ART_HPA then
+        if art == SIGNAL_ART_HP or art == SIGNAL_ART_HPA then
             bildschirm.zeichneElement(signal, farbeUnten, "|")
             bildschirm.zeichneElement(signal, farbeOben, ">", 1)
         elseif art == SIGNAL_ART_SH then
