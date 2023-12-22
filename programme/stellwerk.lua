@@ -87,10 +87,7 @@ local function zeichneSignal(signal, art)
     local farbeOben = colors.red
     local farbeUnten = colors.red
     
-    if signal.status == SIGNAL_HP then
-        farbeOben = colors.lime
-        farbeUnten = colors.lime
-    elseif signal.status == SIGNAL_HPA then
+    if signal.status == SIGNAL_HP or signal.status == SIGNAL_HPA then
         farbeOben = colors.lime
         farbeUnten = colors.lime
     elseif signal.status == SIGNAL_SH then
