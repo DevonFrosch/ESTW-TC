@@ -54,11 +54,13 @@ local protocol = "ESTW " .. config.stellwerkName
 
 local SIGNAL_HALT = "halt"
 local SIGNAL_HP = "hp"
+local SIGNAL_HPA = "hpa"
 local SIGNAL_SH = "sh"
 local SIGNAL_ERS = "ers"
 local SIGNAL_ZA = "za"
 
 local SIGNAL_ART_HP = "hp"
+local SIGNAL_ART_HPA = "hpa"
 local SIGNAL_ART_SH = "sh"
 local SIGNAL_ART_ZA = "za"
 
@@ -88,6 +90,9 @@ local function zeichneSignal(signal, art)
     if signal.status == SIGNAL_HP then
         farbeOben = colors.lime
         farbeUnten = colors.lime
+    elseif signal.status == SIGNAL_HPA then
+        farbeOben = colors.yellow
+        farbeUnten = colors.lime
     elseif signal.status == SIGNAL_SH then
         farbeOben = colors.yellow
         farbeUnten = colors.yellow
@@ -102,6 +107,9 @@ local function zeichneSignal(signal, art)
         if art == SIGNAL_ART_HP then
             bildschirm.zeichneElement(signal, farbeUnten, "|")
             bildschirm.zeichneElement(signal, farbeOben, ">", 1)
+        elseif art == SIGNAL_ART_HPA then
+            bildschirm.zeichneElement(signal, farbeUnten, "|")
+            bildschirm.zeichneElement(signal, farbeOben, ">", 1)
         elseif art == SIGNAL_ART_SH then
             bildschirm.zeichneElement(signal, farbeOben, ">")
         elseif art == SIGNAL_ART_ZA then
@@ -111,6 +119,8 @@ local function zeichneSignal(signal, art)
     else
         bildschirm.zeichneElement(signal, farbeOben, "<")
         if art == SIGNAL_ART_HP then
+            bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
+        elseif art == SIGNAL_ART_HPA then
             bildschirm.zeichneElement(signal, farbeUnten, "|", 1)
         elseif art == SIGNAL_ART_ZA then
             bildschirm.zeichneElement(signal, farbeUnten, "<", 1)
@@ -219,6 +229,8 @@ local function neuzeichnen()
         for sName, signal in pairs(signale) do
             if signal.hp ~= nil or signal.stelle_hp ~= nil then
                 zeichneSignal(signal, SIGNAL_ART_HP)
+            elseif signal.hpa ~= nil or signal.stelle_hpa ~= nil then
+                zeichneSignal(signal, SIGNAL_ART_HPA)
             elseif signal.za ~= nil or signal.stelle_za ~= nil then
                 zeichneSignal(signal, SIGNAL_ART_ZA)
             else
@@ -333,6 +345,7 @@ local function stelleSignal(name, signalbild, mitNachricht)
         kommunikation.sendRedstoneImpulseServer(signal[signalbild].pc, signal[signalbild].au, signal[signalbild].fb)
     else
         aktiviereSignalbild(signal, SIGNAL_HP, false)
+        aktiviereSignalbild(signal, SIGNAL_HPA, false)
         aktiviereSignalbild(signal, SIGNAL_SH, false)
         aktiviereSignalbild(signal, SIGNAL_ZA, false)
         aktiviereSignalbild(signal, SIGNAL_ERS, false)
@@ -644,6 +657,7 @@ local function onRedstoneChange(pc, side, color, state)
     if type(signale) == "table" then
         for sName, signal in pairs(signale) do
             pruefeAenderungSignalStellung(sName, (signal.hp  or signal.stelle_hp ), SIGNAL_HP,  pc, side, color, state)
+            pruefeAenderungSignalStellung(sName, (signal.hpa  or signal.stelle_hpa ), SIGNAL_HPA,  pc, side, color, state)
             pruefeAenderungSignalStellung(sName, (signal.sh  or signal.stelle_sh ), SIGNAL_SH,  pc, side, color, state)
             pruefeAenderungSignalStellung(sName, (signal.za  or signal.stelle_za ), SIGNAL_ZA,  pc, side, color, state)
             pruefeAenderungSignalStellung(sName, (signal.ers or signal.stelle_ers), SIGNAL_ERS, pc, side, color, state)
